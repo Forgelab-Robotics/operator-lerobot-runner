@@ -1,0 +1,33 @@
+# 转换配置模板：policy_train → LeRobot pretrained
+# 相对路径相对本 yaml 所在目录（config/convert/）解析。
+#
+#   uv run lerobot convert --config config/convert/example.yaml
+#   bin/lerobot_infer/lerobot_infer convert --config config/convert/example.yaml
+#
+# 输出布局（永远进子目录）：
+#   多个 *_standard → {dst_dir}/{prefix}/epoch_XXXXXX/
+#   单个 .safetensors → {dst_dir}/{prefix}/single/
+#   prefix 默认 = src_dir 目录名；可用 output_prefix 覆盖
+#
+# 推理时 pretrained_path 指到上述含 model.safetensors 的子目录。
+# 冒烟：uv run lerobot infer-once --config config/inference/smoke.yaml
+
+# 改成你的 policy_train 检查点目录
+src_dir: ../../test_convert/ACT
+
+# 输出根目录
+dst_dir: ../../test_convert/out_put/converted
+
+# 子目录前缀；null = 使用 src_dir 的目录名（如 ACT）
+output_prefix: null
+
+policy_type: act
+
+# 指定单一文件名；null = 自动发现
+checkpoint: null
+
+# 同目录示例 task.json（三路 left/right/top + ACT 默认超参）
+# 有训练真实 task.json 时优先改用那份；也可省略（走内置默认）
+task_json: ./task.json
+
+dry_run: false

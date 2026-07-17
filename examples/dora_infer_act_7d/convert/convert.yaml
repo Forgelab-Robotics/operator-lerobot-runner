@@ -1,0 +1,20 @@
+# 7D 单臂：policy_train → LeRobot 转换示例
+# 相对路径相对本 yaml 所在目录解析。
+#
+#   uv run lerobot convert --config examples/dora_infer_act_7d/convert/convert.yaml
+#   bin/lerobot_infer/lerobot_infer convert --config examples/dora_infer_act_7d/convert/convert.yaml
+#
+# 输出：
+#   多轮 → {dst_dir}/{prefix}/epoch_XXXXXX/
+#   单文件 → {dst_dir}/{prefix}/single/
+#   prefix 默认 = src_dir 目录名；可用 output_prefix 覆盖
+# 再把 policy_act.yaml 的 pretrained_path 指到上述子目录。
+
+src_dir: /path/to/policy_train/7d_ckpt
+dst_dir: /path/to/7d/pretrained_root
+output_prefix: null
+
+policy_type: act
+checkpoint: null
+task_json: ./task.json
+dry_run: false

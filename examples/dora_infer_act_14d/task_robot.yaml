@@ -1,0 +1,93 @@
+# TaskRobot 配置（双臂 14D：左臂 + 右臂）
+# joints 与 policy_act.yaml 一致（先左后右）
+
+joints:
+  - name: robot_left/joint1
+    mode: position
+    unit: radians
+  - name: robot_left/joint2
+    mode: position
+    unit: radians
+  - name: robot_left/joint3
+    mode: position
+    unit: radians
+  - name: robot_left/joint4
+    mode: position
+    unit: radians
+  - name: robot_left/joint5
+    mode: position
+    unit: radians
+  - name: robot_left/joint6
+    mode: position
+    unit: radians
+  - name: robot_left/gripper
+    mode: prismatic
+    unit: millimeters
+  - name: robot_right/joint1
+    mode: position
+    unit: radians
+  - name: robot_right/joint2
+    mode: position
+    unit: radians
+  - name: robot_right/joint3
+    mode: position
+    unit: radians
+  - name: robot_right/joint4
+    mode: position
+    unit: radians
+  - name: robot_right/joint5
+    mode: position
+    unit: radians
+  - name: robot_right/joint6
+    mode: position
+    unit: radians
+  - name: robot_right/gripper
+    mode: prismatic
+    unit: millimeters
+
+robots:
+  - id: robot_left
+    joints:
+      [
+        "robot_left/joint1",
+        "robot_left/joint2",
+        "robot_left/joint3",
+        "robot_left/joint4",
+        "robot_left/joint5",
+        "robot_left/joint6",
+        "robot_left/gripper",
+      ]
+    actuator_order: ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "gripper"]
+    joint_to_actuator:
+      robot_left/joint1: joint1
+      robot_left/joint2: joint2
+      robot_left/joint3: joint3
+      robot_left/joint4: joint4
+      robot_left/joint5: joint5
+      robot_left/joint6: joint6
+      robot_left/gripper: gripper
+  - id: robot_right
+    joints:
+      [
+        "robot_right/joint1",
+        "robot_right/joint2",
+        "robot_right/joint3",
+        "robot_right/joint4",
+        "robot_right/joint5",
+        "robot_right/joint6",
+        "robot_right/gripper",
+      ]
+    actuator_order: ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "gripper"]
+    joint_to_actuator:
+      robot_right/joint1: joint1
+      robot_right/joint2: joint2
+      robot_right/joint3: joint3
+      robot_right/joint4: joint4
+      robot_right/joint5: joint5
+      robot_right/joint6: joint6
+      robot_right/gripper: gripper
+
+# image_forward:
+#   image/left: image/left
+#   image/right: image/right
+#   image/top: image/top

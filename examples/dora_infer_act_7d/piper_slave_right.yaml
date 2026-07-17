@@ -1,0 +1,7 @@
+## Piper 真机节点配置示例
+# 复制或直接修改本文件，以匹配现场的 Piper 机械臂与 CAN 端口。
+
+# 实际使用的 CAN 端口，如 can0、can1
+port: can_follower_2
+
+is_follower: true

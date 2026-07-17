@@ -1,93 +1,119 @@
-# lerobot_runner
+# LeRobot Inference
 
+将旧版 `policy_train` 的 ACT 产物转换为 LeRobot checkpoint，并以 CLI 或 Dora 节点运行在线推理。
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.ex-ai.cn/meta-emt/framework/policies/embodied/lerobot_runner.git
-git branch -M main
-git push -uf origin main
+```text
+policy_train ACT ── convert ──> pretrained_model/ ── infer ──> Dora JointCommand
+LeRobot checkpoint ──────────────────────────────────┘
 ```
 
-## Integrate with your tools
+推理始终加载完整的 `pretrained_model/` 目录（权重、配置和 processor），而不是单独的权重或统计文件。
 
-- [ ] [Set up project integrations](https://gitlab.ex-ai.cn/meta-emt/framework/policies/embodied/lerobot_runner/-/settings/integrations)
+## 快速开始
 
-## Collaborate with your team
+要求：Linux x86_64、Python 3.12、[uv](https://docs.astral.sh/uv/)；GPU 推理还需要与 CUDA 12 兼容的驱动。安装时需能访问内部 Forge GitLab 仓库。
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+```bash
+git clone <repository-url>
+cd lerobot_runner
+uv sync --extra dev
 
-## Test and Deploy
+uv run lerobot --help
+uv run pytest
+```
 
-Use the built-in continuous integration in GitLab.
+主命令为 `lerobot`，子命令：
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+uv run lerobot convert --help
+uv run lerobot infer --help
+uv run lerobot infer-once --help
+```
 
-***
+兼容命令 `lerobot-convert`、`lerobot-infer` 和 `lerobot-infer-once` 仍可使用。
 
-# Editing this README
+## 项目结构
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```text
+.
+├── cli.py                 # 统一 CLI 入口
+├── common/                # checkpoint 与预训练资产共用逻辑
+├── convert/               # policy_train ACT → LeRobot checkpoint
+├── inference/             # Dora 与单次推理实现
+│   └── policies/          # ACT、Pi0.5 策略适配器
+├── config/                # 通用配置模板
+├── examples/              # 转换、7D 与 14D Dora 示例
+├── scripts/               # 安装、测试、打包辅助脚本
+├── tests/                 # 单元测试
+└── docs/                  # 设计与实现说明
+```
 
-## Suggestions for a good README
+## 转换 ACT 权重
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+源目录至少应包含：
 
-## Name
-Choose a self-explaining name for your project.
+```text
+<src-dir>/
+├── policy_epoch_*_standard.safetensors
+└── dataset_stats.pkl
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+仅支持 `*_standard.safetensors`；默认自动选择最新文件。`task.json` 用于相机名称和 ACT 超参数，推荐提供训练时使用的文件；省略时使用默认的 left/right/top 三相机与 ACT 参数。
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+uv run lerobot convert --config examples/dora_convert/convert.yaml
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可直接用作 `policy.pretrained_path`：
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```text
+<dst-dir>/
+├── model.safetensors
+├── config.json
+├── policy_preprocessor.json
+├── policy_postprocessor.json
+└── conversion_meta.json
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 运行推理
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+推理配置必须确保：
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+1. `joints` 的顺序和数量与模型 action 维度一致（7D 对应 7 个关节，14D 对应 14 个关节）。
+2. `image_inputs` 与训练相机 key 一致。
+3. `policy.pretrained_path` 指向包含 `model.safetensors` 的目录。
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+# 不启动 Dora 的单次推理验证
+uv run lerobot infer-once --config examples/dora_infer_act_14d/policy_act.yaml
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+# 真机 Dora 示例：先按设备和模型修改 YAML
+cd examples/dora_infer_act_14d
+dora run dataflow.yaml
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+可参考 `examples/dora_infer_act_7d/` 和 `examples/dora_infer_act_14d/` 的完整 dataflow 与策略配置。
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+Pi0.5 还需要 tokenizer 路径和语言指令：
 
-## License
-For open source projects, say how it is licensed.
+```yaml
+policy:
+  type: pi05
+  pretrained_path: /path/to/pretrained_model
+  tokenizer_path: /path/to/paligemma-tokenizer
+  instruction: pick up the object and place it in the box
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## 打包
+
+```bash
+bash scripts/build.sh
+```
+
+PyInstaller 产物位于 `dist/lerobot_infer/lerobot_infer`：
+
+```bash
+dist/lerobot_infer/lerobot_infer infer --config /path/to/policy_act.yaml
+```
+
+构建缓存和产物均被 Git 忽略；需要重新打包时可执行 `bash scripts/build.sh --clean`。

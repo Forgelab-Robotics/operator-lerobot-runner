@@ -1,0 +1,45 @@
+# 单臂 ACT（7D）— lerobot_inference 策略节点配置
+# joints 与 task_robot.yaml 一致；维数须等于 pretrained_model 的 state/action dim。
+#
+# smoke（仓库根目录）：
+#   uv run lerobot infer-once --config examples/dora_infer_act_7d/policy_act.yaml
+# Dora：
+#   cd examples/dora_infer_act_7d && dora run dataflow.yaml
+
+joints:
+  - name: robot_right/joint1
+    mode: position
+    unit: radians
+  - name: robot_right/joint2
+    mode: position
+    unit: radians
+  - name: robot_right/joint3
+    mode: position
+    unit: radians
+  - name: robot_right/joint4
+    mode: position
+    unit: radians
+  - name: robot_right/joint5
+    mode: position
+    unit: radians
+  - name: robot_right/joint6
+    mode: position
+    unit: radians
+  - name: robot_right/gripper
+    mode: prismatic
+    unit: millimeters
+
+policy:
+  type: ACT
+  auto_start: false
+  policy_id: default
+  # 默认启用；设为 false 可关闭 torch.compile(backbone)
+  # torch_compile: true
+  # LeRobot 产物目录（含 model.safetensors）；必须为 7D
+  # 可由 convert 得到，或直接指向 lerobot_trainer checkpoint
+  pretrained_path: /path/to/7d/checkpoints/000040/pretrained_model
+
+image_inputs:
+  image/left: left
+  image/top: top
+  image/right: right

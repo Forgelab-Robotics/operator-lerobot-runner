@@ -1,0 +1,124 @@
+# 真机双臂 ACT（14D）推理
+# 格式对齐 single_real_inference；策略节点改用本项目 lerobot-infer；左右臂均接 action。
+#
+# 假定目录布局：
+#   <workspace>/forge_runtime/
+#   <workspace>/lerobot_inference/
+#
+# 运行：
+#   cd lerobot_inference && bash scripts/build.sh   # 生成 bin/lerobot_infer/
+#   cd examples/dora_infer_act_14d
+#   # 先改 policy_act.yaml 的 pretrained_path、各设备 yaml
+#   dora run dataflow.yaml
+
+nodes:
+  - id: camera_left
+    path: ../../../forge_runtime/bin/camera
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    args: --config camera_left.yaml
+
+  - id: camera_right
+    path: ../../../forge_runtime/bin/camera
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    args: --config camera_right.yaml
+
+  - id: camera_top
+    path: ../../../forge_runtime/bin/camera
+    inputs:
+      tick: dora/timer/millis/33
+    outputs:
+      - image
+    args: --config camera_top.yaml
+
+  - id: piper_slave_left
+    # path: ../../../forge_runtime/packages/nodes/robots/piper/main.py
+    path: ../../../forge_runtime/bin/robot_piper
+    inputs:
+      tick: dora/timer/millis/20
+      action: task_robot/robot_left/action
+    outputs:
+      - state
+    args: --config piper_slave_left.yaml
+
+  - id: piper_slave_right
+    # path: ../../../forge_runtime/packages/nodes/robots/piper/main.py
+    path: ../../../forge_runtime/bin/robot_piper
+    inputs:
+      tick: dora/timer/millis/20
+      action: task_robot/robot_right/action
+    outputs:
+      - state
+    args: --config piper_slave_right.yaml
+
+  - id: image_viewer
+    # path: ../../../forge_runtime/packages/nodes/viewers/image_viewer/main.py
+    path: ../../../forge_runtime/bin/image_viewer
+    inputs:
+      image/left: camera_left/image
+      image/right: camera_right/image
+      image/top: camera_top/image
+
+  - id: task_robot
+    # path: ../../../forge_runtime/packages/nodes/task_robot/main.py
+    path: ../../../forge_runtime/bin/task_robot
+    inputs:
+      action: policy/action
+      robot_left/state: piper_slave_left/state
+      robot_right/state: piper_slave_right/state
+      image/left: camera_left/image
+      image/right: camera_right/image
+      image/top: camera_top/image
+    outputs:
+      - robot_left/action
+      - robot_right/action
+      - proprio_state
+      - image/left
+      - image/right
+      - image/top
+    args: --config task_robot.yaml
+
+  - id: policy
+    # 开发：源码 / venv 入口（统一 CLI）
+    # path: ../../.venv/bin/lerobot
+    # 运行时：PyInstaller 打包产物（bash scripts/build.sh → bin/lerobot_infer/）
+    path: ../../bin/lerobot_infer/lerobot_infer
+    args: infer --config ./policy_act.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      proprio_state: task_robot/proprio_state
+      image/left: camera_left/image
+      image/right: camera_right/image
+      image/top: camera_top/image
+    outputs:
+      - action
+
+  - id: control_gateway
+    # path: ../../../forge_runtime/packages/nodes/control_gateway/main.py
+    path: ../../../forge_runtime/bin/control_gateway
+    args: --record-root ./logs
+    inputs:
+      record_status: mcap_recorder/record_status
+    outputs:
+      - start_recording
+      - stop_recording
+
+  - id: mcap_recorder
+    # path: ../../../forge_runtime/packages/nodes/recorders/mcap_recorder/main.py
+    path: ../../../forge_runtime/bin/mcap_recorder
+    args: --fps 50 --min-ready-topics 5 --jpeg-quality 80 --output ./logs/dora_infer_act_14d.mcap
+    inputs:
+      start_recording: control_gateway/start_recording
+      stop_recording: control_gateway/stop_recording
+      action: policy/action
+      proprio_state: task_robot/proprio_state
+      image/left: camera_left/image
+      image/right: camera_right/image
+      image/top: camera_top/image
+    outputs:
+      - record_status

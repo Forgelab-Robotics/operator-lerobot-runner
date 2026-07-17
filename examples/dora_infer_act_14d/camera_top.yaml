@@ -1,0 +1,8 @@
+# 摄像头节点配置（可按设备与需求修改）
+device: "/dev/video4"
+output_id: "image"
+image_format: "jpeg"
+image_jpeg_quality: 85
+width: 640
+height: 480
+fps: 30

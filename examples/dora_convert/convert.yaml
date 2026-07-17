@@ -1,0 +1,17 @@
+# policy_train → LeRobot 转换参数
+# 相对路径相对本 yaml 所在目录解析。
+#
+# 输出：{dst_dir}/{prefix}/single/ 或 {dst_dir}/{prefix}/epoch_XXXXXX/
+# prefix 默认 = src_dir 目录名（此处为 ACT）
+
+src_dir: ../../test_convert/ACT
+dst_dir: ../../test_convert/out_put/converted
+output_prefix: null
+
+policy_type: act
+checkpoint: null
+
+# 无原始 task.json 时用同目录 minimal_task.json
+task_json: ./minimal_task.json
+
+dry_run: false

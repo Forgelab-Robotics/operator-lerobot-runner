@@ -1,0 +1,71 @@
+# 冒烟推理配置（infer-once，不依赖 Dora）
+#
+# 对应 convert 默认产物（先转再冒烟）：
+#   uv run lerobot convert --config config/convert/example.yaml
+#   # 产物：test_convert/out_put/converted/ACT/single/
+#
+# 二进制：
+#   dist/lerobot_infer/lerobot_infer infer-once --config config/inference/smoke.yaml
+# 源码：
+#   uv run lerobot infer-once --config config/inference/smoke.yaml
+#
+# 相对路径相对本 yaml（config/inference/）解析。
+# test_convert/ACT 为 14D；若你的模型是 7D，请改用 / 复制本文件并改 joints。
+
+joints:
+  - name: robot_left/joint1
+    mode: position
+    unit: radians
+  - name: robot_left/joint2
+    mode: position
+    unit: radians
+  - name: robot_left/joint3
+    mode: position
+    unit: radians
+  - name: robot_left/joint4
+    mode: position
+    unit: radians
+  - name: robot_left/joint5
+    mode: position
+    unit: radians
+  - name: robot_left/joint6
+    mode: position
+    unit: radians
+  - name: robot_left/gripper
+    mode: prismatic
+    unit: millimeters
+  - name: robot_right/joint1
+    mode: position
+    unit: radians
+  - name: robot_right/joint2
+    mode: position
+    unit: radians
+  - name: robot_right/joint3
+    mode: position
+    unit: radians
+  - name: robot_right/joint4
+    mode: position
+    unit: radians
+  - name: robot_right/joint5
+    mode: position
+    unit: radians
+  - name: robot_right/joint6
+    mode: position
+    unit: radians
+  - name: robot_right/gripper
+    mode: prismatic
+    unit: millimeters
+
+policy:
+  type: ACT
+  auto_start: false
+  policy_id: smoke
+  # 默认指向上次本机 convert 常用输出；没有该目录时改成你的 ACT/single 路径
+  pretrained_path: ../../output_act/convert_test_act1/ACT/single
+  # 若用 config/convert/example.yaml 的默认 dst，则为：
+  # pretrained_path: ../../test_convert/out_put/converted/ACT/single
+
+image_inputs:
+  image/left: left
+  image/right: right
+  image/top: top

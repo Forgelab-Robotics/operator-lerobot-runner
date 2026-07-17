@@ -1,0 +1,18 @@
+## Piper 真机节点配置示例
+# 复制或直接修改本文件，以匹配现场的 Piper 机械臂与 CAN 端口。
+
+# 实际使用的 CAN 端口，如 can0、can1
+port: can_follower_1
+
+is_follower: true
+
+# 可选：节点启动后（仅 follower 生效）会先连接并使能，再移动到该初始位姿。
+# 关节单位 radians，夹爪单位 millimeters；未配置时保持默认回零行为。
+init_position:
+  joint1: -0.7641265416145325
+  joint2: 0.007
+  joint3: -0.886
+  joint4: 0.0519
+  joint5: 0.9163
+  joint6: 0.04
+  gripper: 105.0

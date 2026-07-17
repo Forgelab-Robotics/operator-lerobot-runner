@@ -1,0 +1,65 @@
+# 双臂 ACT（14D）— lerobot_inference 策略节点配置
+# joints 与 task_robot.yaml 一致（先左后右）；维数须等于 pretrained_model。
+#
+# smoke（仓库根目录）：
+#   uv run lerobot infer-once --config examples/dora_infer_act_14d/policy_act.yaml
+# Dora：
+#   cd examples/dora_infer_act_14d && dora run dataflow.yaml
+
+joints:
+  - name: robot_left/joint1
+    mode: position
+    unit: radians
+  - name: robot_left/joint2
+    mode: position
+    unit: radians
+  - name: robot_left/joint3
+    mode: position
+    unit: radians
+  - name: robot_left/joint4
+    mode: position
+    unit: radians
+  - name: robot_left/joint5
+    mode: position
+    unit: radians
+  - name: robot_left/joint6
+    mode: position
+    unit: radians
+  - name: robot_left/gripper
+    mode: prismatic
+    unit: millimeters
+  - name: robot_right/joint1
+    mode: position
+    unit: radians
+  - name: robot_right/joint2
+    mode: position
+    unit: radians
+  - name: robot_right/joint3
+    mode: position
+    unit: radians
+  - name: robot_right/joint4
+    mode: position
+    unit: radians
+  - name: robot_right/joint5
+    mode: position
+    unit: radians
+  - name: robot_right/joint6
+    mode: position
+    unit: radians
+  - name: robot_right/gripper
+    mode: prismatic
+    unit: millimeters
+
+policy:
+  type: ACT
+  auto_start: false
+  policy_id: default
+  # 默认启用；设为 false 可关闭 torch.compile(backbone)
+  # torch_compile: true
+  # LeRobot 产物目录（含 model.safetensors）；必须为 14D
+  pretrained_path: ../../test_convert/out_put/converted
+
+image_inputs:
+  image/left: left
+  image/top: top
+  image/right: right

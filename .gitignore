@@ -1,0 +1,12 @@
+converted/
+test_convert/out_put/
+test_runs/
+.venv/
+.idea/
+__pycache__/
+*.pyc
+.bin/
+bin/
+dist/
+build/
+*.spec.bak

@@ -1,0 +1,16 @@
+# Dora：policy_train → lerobot_trainer 格式转换（一次性节点）
+#
+# 在本目录执行：
+#   cd lerobot_inference/examples/dora_convert
+#   dora run dataflow.yaml
+#
+# 转换节点：统一入口 lerobot，首参 convert。
+# 等价：uv run lerobot convert --config ./convert.yaml
+
+nodes:
+  - id: convert
+    # 开发：源码 / venv
+    path: ../../.venv/bin/lerobot
+    # 运行时：同一 PyInstaller 产物（bash scripts/build.sh）
+    # path: ../../bin/lerobot_infer/lerobot_infer
+    args: convert --config ./convert.yaml

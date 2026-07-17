@@ -1,0 +1,29 @@
+{
+  "task_id": "convert_example",
+  "launch": {
+    "cameras": [
+      "observation.images.left",
+      "observation.images.right",
+      "observation.images.top"
+    ],
+    "layered_request": {
+      "policy": {
+        "type": "ACT",
+        "params": {
+          "lr": 2e-05,
+          "lr_backbone": 2e-05,
+          "chunk_size": 100,
+          "num_queries": 100,
+          "query_size": 50,
+          "kl_weight": 10,
+          "hidden_dim": 512,
+          "dim_feedforward": 3200,
+          "backbone": "resnet18",
+          "enc_layers": 4,
+          "dec_layers": 7,
+          "nheads": 8
+        }
+      }
+    }
+  }
+}

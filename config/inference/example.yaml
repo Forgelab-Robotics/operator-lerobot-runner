@@ -1,0 +1,46 @@
+# 推理配置模板（对标 pick_and_place / examples/dora_infer_act_*）
+#
+#   uv run lerobot infer-once --config config/inference/example.yaml
+#   uv run lerobot infer --config config/inference/example.yaml
+# 真机请优先改用 examples/dora_infer_act_7d/policy_act.yaml 等完整样例。
+
+joints:
+  - name: joint1
+    mode: position
+    unit: radians
+  - name: joint2
+    mode: position
+    unit: radians
+  - name: joint3
+    mode: position
+    unit: radians
+  - name: joint4
+    mode: position
+    unit: radians
+  - name: joint5
+    mode: position
+    unit: radians
+  - name: joint6
+    mode: position
+    unit: radians
+  - name: gripper
+    mode: position
+    unit: millimeters
+
+policy:
+  type: ACT
+  auto_start: false
+  policy_id: default
+
+  # LeRobot 产物（含 model.safetensors）；维数须等于 len(joints)
+  pretrained_path: /path/to/pretrained_model
+
+  # Pi0.5：
+  # type: pi05
+  # tokenizer_path: /path/to/paligemma-tokenizer
+  # instruction: pick up the object and place it in the box
+
+image_inputs:
+  image/left: left
+  image/right: right
+  image/top: top
