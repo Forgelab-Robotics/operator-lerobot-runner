@@ -3,8 +3,8 @@
   "launch": {
     "cameras": [
       "observation.images.left",
-      "observation.images.right",
-      "observation.images.top"
+      "observation.images.top",
+      "observation.images.right"
     ],
     "layered_request": {
       "policy": {
