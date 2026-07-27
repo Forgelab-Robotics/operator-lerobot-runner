@@ -41,7 +41,7 @@ uv run lerobot infer-once --help
 ├── convert/               # policy_train ACT → LeRobot checkpoint
 ├── inference/             # Dora 与单次推理实现
 │   └── policies/          # ACT、Pi0.5 策略适配器
-├── config/                # 通用配置模板
+├── config/                # 按策略拆分的转换与推理配置模板
 ├── examples/              # 转换、7D 与 14D Dora 示例
 ├── scripts/               # 安装、测试、打包辅助脚本
 ├── tests/                 # 单元测试
@@ -76,6 +76,16 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 ```
 
 ## 运行推理
+
+每个已实现的策略都有独立模板：
+
+| 配置 | backend |
+| --- | --- |
+| `config/inference/act.yaml` | ACT 标准 chunk，可选 temporal ensemble |
+| `config/inference/pi05.yaml` | PI0.5 同步 `select_action()` |
+| `config/inference/pi05_async_rtc.yaml` | PI0.5 异步 Real-Time Chunking |
+
+完整说明见 `config/inference/README.md`。
 
 推理配置必须确保：
 

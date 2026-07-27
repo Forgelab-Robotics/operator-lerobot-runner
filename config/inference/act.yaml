@@ -1,7 +1,7 @@
-# 向后兼容的 ACT 推理模板；新配置请优先使用 config/inference/act.yaml。
+# ACT 推理配置模板
 #
-#   uv run lerobot infer-once --config config/inference/example.yaml
-#   uv run lerobot infer --config config/inference/example.yaml
+#   uv run lerobot infer-once --config config/inference/act.yaml
+#   uv run lerobot infer --config config/inference/act.yaml
 # 完整 Dora 样例见 examples/dora_infer_act_* 和 examples/dora_sim_infer_act_7d_bin/。
 
 joints:

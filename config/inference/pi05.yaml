@@ -1,0 +1,39 @@
+# PI0.5 同步推理配置模板
+#
+#   uv run lerobot infer-once --config config/inference/pi05.yaml
+#   uv run lerobot infer --config config/inference/pi05.yaml
+# 使用 LeRobot 原生 select_action() 和 action chunk queue。
+
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - { name: gripper, mode: position, unit: millimeters }
+
+# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
+# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
+policy:
+  type: pi05
+  auto_start: false
+  policy_id: pi05_sync_example
+
+  pretrained_path: /path/to/pi05/pretrained_model
+  tokenizer_path: /path/to/local/paligemma-tokenizer
+  # 必须与训练数据中的 task 文本对齐。
+  instruction: pick up the object and place it in the target
+
+  inference_mode: sync
+  # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
+  compile_model: false
+  gradient_checkpointing: false
+  # n_action_steps 和 num_inference_steps 默认沿用 checkpoint config。
+
+# alias 必须与 checkpoint 的 observation.images.<alias> feature 完全一致。
+image_inputs:
+  image/top: top
+  image/angle: angle
+  image/left_pillar: left_pillar
