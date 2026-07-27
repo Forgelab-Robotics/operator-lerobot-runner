@@ -61,8 +61,7 @@ nodes:
     args: --config piper_slave_right.yaml
 
   - id: image_viewer
-    # path: ../../../forge_runtime/packages/nodes/viewers/image_viewer/main.py
-    path: ../../../forge_runtime/bin/image_viewer
+    path: ${FORGE_RUNTIME_BIN}/image_viewer
     inputs:
       image/left: camera_left/image
       image/right: camera_right/image
