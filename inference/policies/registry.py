@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from typing import Any
 
@@ -75,6 +76,42 @@ def _expected_image_keys(policy_config: dict[str, Any], camera_aliases: list[str
     return {f"observation.images.{alias}" for alias in camera_aliases}
 
 
+def _act_runtime_dimensions(
+    policy_config: dict[str, Any],
+) -> tuple[int | None, int | None]:
+    state_dim = policy_config.get("state_joint_count")
+    if state_dim is None:
+        state_dim = policy_config.get("state_dim", policy_config.get("joint_count"))
+    action_dim = policy_config.get("action_joint_count")
+    if action_dim is None:
+        action_dim = policy_config.get("action_dim", policy_config.get("joint_count"))
+    # Historical runtime dictionaries used either state_dim or joint_count as
+    # the shared ACT state/action dimension.
+    if state_dim is None:
+        state_dim = action_dim
+    if action_dim is None:
+        action_dim = state_dim
+    return (
+        int(state_dim) if state_dim is not None else None,
+        int(action_dim) if action_dim is not None else None,
+    )
+
+
+def _act_policy_config_overrides(policy_config: dict[str, Any]) -> dict[str, Any]:
+    if "temporal_ensemble_coeff" not in policy_config:
+        return {}
+    raw_coeff = policy_config["temporal_ensemble_coeff"]
+    if raw_coeff is None:
+        return {"temporal_ensemble_coeff": None}
+    if isinstance(raw_coeff, bool) or not isinstance(raw_coeff, (int, float)):
+        raise ValueError("policy.temporal_ensemble_coeff must be a finite number or null")
+    coeff = float(raw_coeff)
+    if not math.isfinite(coeff):
+        raise ValueError("policy.temporal_ensemble_coeff must be a finite number or null")
+    # LeRobot requires one fresh prediction per step when temporal ensembling is enabled.
+    return {"temporal_ensemble_coeff": coeff, "n_action_steps": 1}
+
+
 def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
     from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
 
@@ -84,10 +121,11 @@ def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotP
         device=policy_config.get("device"),
         expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
         torch_compile=compile_enabled_from_policy_config(policy_config),
+        policy_config_overrides=_act_policy_config_overrides(policy_config),
     )
-    joint_count = policy_config.get("joint_count") or policy_config.get("state_dim")
-    if joint_count is not None:
-        adapter.validate_joint_count(int(joint_count))
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
     return adapter
 
 

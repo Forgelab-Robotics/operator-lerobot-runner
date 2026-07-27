@@ -1,0 +1,37 @@
+# bin/050f..._scene 中的单臂 Piper 放置场景。
+model_path: ../../bin/050f9b6f-30e7-4dab-a4c4-0a4aed9b8adb_scene/scene.xml
+control_hz: 50
+image_format: raw
+
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - name: gripper
+    mode: prismatic
+    unit: millimeters
+    state_from_joints: [joint7, joint8]
+    state_expr: diff
+    state_scale: 1000.0
+
+robots:
+  - id: robot_0
+    prefix: item_1/
+    actuator_order: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+    joint_to_actuator:
+      joint1: joint1
+      joint2: joint2
+      joint3: joint3
+      joint4: joint4
+      joint5: joint5
+      joint6: joint6
+      gripper: gripper
+
+# 场景相机名带 attach prefix；输出名与 ACT checkpoint features 对齐。
+image_forward:
+  item_1/left_pillar: { output: "image/left", fps: 30, width: 640, height: 480 }
+  item_1/right_pillar: { output: "image/right", fps: 30, width: 640, height: 480 }
+  item_1/top: { output: "image/top", fps: 30, width: 640, height: 480 }

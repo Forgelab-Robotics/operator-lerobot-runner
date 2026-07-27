@@ -1,0 +1,17 @@
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - { name: gripper, mode: prismatic, unit: millimeters }
+
+robots:
+  - id: robot_0
+    joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
+image_forward:
+  image/left: image/left
+  image/right: image/right
+  image/top: image/top

@@ -1,0 +1,55 @@
+# 单臂 Piper MuJoCo + ACT 7D 推理；所有运行节点均使用 ../../bin 下的二进制。
+# 在本目录执行：dora run dataflow.yaml
+
+nodes:
+  - id: mujoco
+    path: ../../bin/mujoco_sim
+    args: --config ./simulator.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      action: task_robot/action
+      sim_command: task_robot/sim_command
+    outputs:
+      - proprio_state
+      - image/left
+      - image/right
+      - image/top
+      - sim_status
+      - pose_set
+
+  - id: task_robot
+    path: ../../bin/task_robot
+    args: --config ./task_robot.yaml
+    inputs:
+      action: policy/action
+      proprio_state: mujoco/proprio_state
+      image/left: mujoco/image/left
+      image/right: mujoco/image/right
+      image/top: mujoco/image/top
+    outputs:
+      - action
+      - robot_0/action
+      - proprio_state
+      - sim_command
+      - image/left
+      - image/right
+      - image/top
+
+  - id: policy
+    path: ../../bin/lerobot_infer/lerobot_infer
+    args: infer --config ./policy_act.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      proprio_state: task_robot/proprio_state
+      image/left: task_robot/image/left
+      image/right: task_robot/image/right
+      image/top: task_robot/image/top
+    outputs:
+      - action
+
+  - id: image_viewer
+    path: ../../bin/image_viewer
+    inputs:
+      image/left: task_robot/image/left
+      image/right: task_robot/image/right
+      image/top: task_robot/image/top

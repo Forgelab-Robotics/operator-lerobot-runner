@@ -13,14 +13,25 @@ def launch_cwd() -> Path:
     PyInstaller runtime hooks may ``chdir`` into ``_MEIPASS``; prefer the preserved
     launch cwd / shell ``PWD`` so relative CLI paths still work.
     """
-    for key in ("LEROOT_LAUNCH_CWD", "PWD"):
-        value = os.environ.get(key)
-        if not value:
-            continue
-        path = Path(value).expanduser()
+    override = os.environ.get("LEROOT_LAUNCH_CWD")
+    if override:
+        path = Path(override).expanduser()
         if path.is_dir():
             return path.resolve()
-    return Path.cwd().resolve()
+
+    cwd = Path.cwd().resolve()
+    meipass = getattr(sys, "_MEIPASS", None)
+    if not meipass or cwd != Path(meipass).resolve():
+        # Dora changes the subprocess cwd but may leave the inherited PWD value
+        # untouched, so the actual process cwd is authoritative.
+        return cwd
+
+    preserved_pwd = os.environ.get("PWD")
+    if preserved_pwd:
+        path = Path(preserved_pwd).expanduser()
+        if path.is_dir():
+            return path.resolve()
+    return cwd
 
 
 def resolve_user_path(path: str | Path) -> Path:

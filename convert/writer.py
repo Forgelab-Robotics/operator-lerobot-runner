@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import torch
 from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.policies.act.configuration_act import ACTConfig
 from lerobot.policies.act.modeling_act import ACTPolicy
@@ -15,6 +16,28 @@ from safetensors.torch import load_file
 from lerobot_inference.convert.meta import PolicyTrainMeta
 from lerobot_inference.convert.stats_converter import pkl_to_lerobot_stats
 from lerobot_inference.convert.weight_mapper import map_policy_train_state_dict, shape_match_report
+
+
+def load_source_state_dict(path: Path) -> dict[str, torch.Tensor]:
+    """Load trusted tensor-only policy_train weights without executing pickle code."""
+    suffix = path.suffix.lower()
+    if suffix == ".safetensors":
+        source = load_file(str(path))
+    elif suffix == ".ckpt":
+        source = torch.load(path, map_location="cpu", weights_only=True)
+    else:
+        raise ValueError(f"Unsupported checkpoint format: {path.name}")
+
+    if isinstance(source, dict) and "state_dict" in source:
+        source = source["state_dict"]
+    if not isinstance(source, dict) or not all(
+        isinstance(key, str) and isinstance(value, torch.Tensor)
+        for key, value in source.items()
+    ):
+        raise TypeError(
+            f"Checkpoint must contain a tensor-only state_dict, got {type(source).__name__}: {path}"
+        )
+    return dict(source)
 
 
 def _build_act_config(meta: PolicyTrainMeta) -> ACTConfig:
@@ -54,6 +77,9 @@ def _build_act_config(meta: PolicyTrainMeta) -> ACTConfig:
         n_decoder_layers=1,
         n_vae_encoder_layers=enc_layers,
         vision_backbone=str(params.get("backbone", "resnet18")),
+        # Conversion loads a complete trained backbone from the source checkpoint;
+        # avoid an unnecessary network download during model construction.
+        pretrained_backbone_weights=None,
         kl_weight=float(params.get("kl_weight", 10.0)),
         optimizer_lr=float(params.get("lr", 2e-5)),
         optimizer_lr_backbone=float(params.get("lr_backbone", 2e-5)),
@@ -70,7 +96,7 @@ def convert_policy_train_to_lerobot(
 ) -> dict[str, Any]:
     """Write LeRobot loadable assets directly into ``dst_dir`` (no checkpoints/ nesting)."""
     dst_dir = dst_dir.expanduser().resolve()
-    source_state = load_file(str(meta.checkpoint_path))
+    source_state = load_source_state_dict(meta.checkpoint_path)
     config = _build_act_config(meta)
     policy = ACTPolicy(config)
     mapped_state, map_report = map_policy_train_state_dict(source_state)

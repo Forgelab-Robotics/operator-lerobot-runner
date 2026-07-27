@@ -26,7 +26,9 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     # Preserve the directory the user launched from; relative --config / yaml
     # paths must not resolve under _internal after we chdir for torch.compile.
     if "LEROOT_LAUNCH_CWD" not in os.environ:
-        os.environ["LEROOT_LAUNCH_CWD"] = os.environ.get("PWD") or os.getcwd()
+        # Dora changes the child process cwd without necessarily updating the
+        # inherited PWD environment variable.  getcwd() is the authoritative value.
+        os.environ["LEROOT_LAUNCH_CWD"] = os.getcwd()
     os.chdir(sys._MEIPASS)
 
 cache_root = _default_cache_root() / "lerobot_inference"

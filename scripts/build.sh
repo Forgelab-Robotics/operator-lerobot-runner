@@ -132,7 +132,7 @@ if [[ -n "${EXTRA_PYINSTALLER_ARGS:-}" ]]; then
   PYINSTALLER_ARGS+=("${_extra_args[@]}")
 fi
 
-echo "==> Building lerobot_infer (torch.compile enabled)..."
+echo "==> Building lerobot_infer ..."
 "${PYTHON}" -m PyInstaller "${PYINSTALLER_ARGS[@]}" "${SPEC}"
 
 DIST_DIR="${ROOT}/dist/lerobot_infer"
@@ -143,10 +143,19 @@ if [[ ! -x "${DIST_BIN}" ]]; then
   exit 1
 fi
 
+BIN_DIR="${ROOT}/bin/lerobot_infer"
+rm -rf "${BIN_DIR}"
+cp -a "${DIST_DIR}" "${BIN_DIR}"
+BIN_BIN="${BIN_DIR}/lerobot_infer"
+if [[ ! -x "${BIN_BIN}" ]]; then
+  echo "ERROR: 复制失败，未找到 ${BIN_BIN}" >&2
+  exit 1
+fi
+
 echo
 echo "Done."
 echo "  dist: ${DIST_BIN}"
-echo "  torch.compile: look for 'Successfully compiled ACT backbone (ResNet).'"
+echo "  bin:  ${BIN_BIN}"
 echo
 echo "统一入口用法："
 echo "  ${DIST_BIN} --help"
@@ -155,5 +164,5 @@ echo "  ${DIST_BIN} infer --config ./policy_act.yaml"
 echo "  ${DIST_BIN} infer-once --config ./policy_act.yaml"
 echo
 echo "dataflow.yaml 示例："
-echo "  path: ../../dist/lerobot_infer/lerobot_infer"
+echo "  path: ../../bin/lerobot_infer/lerobot_infer"
 echo "  args: infer --config ./policy_act.yaml"

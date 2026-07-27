@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -28,14 +29,19 @@ def load_policy_bundle(
     *,
     device: str | None = None,
     preprocessor_overrides: dict[str, Any] | None = None,
+    policy_config_overrides: dict[str, Any] | None = None,
 ) -> tuple[PreTrainedPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, PreTrainedConfig]:
-    """Load policy weights and processor pipelines from a local pretrained_model directory."""
+    """Load a policy and its processors with optional checkpoint config overrides."""
     path = Path(pretrained_path).expanduser().resolve()
-    config = PreTrainedConfig.from_pretrained(path)
-    policy_cls = get_policy_class(config.type)
-    policy = policy_cls.from_pretrained(path)
-
+    cli_overrides = [
+        f"--{key}={json.dumps(value)}"
+        for key, value in (policy_config_overrides or {}).items()
+    ]
+    config = PreTrainedConfig.from_pretrained(path, cli_overrides=cli_overrides)
     dev = resolve_device(device or getattr(config, "device", None))
+    config.device = str(dev)
+    policy_cls = get_policy_class(config.type)
+    policy = policy_cls.from_pretrained(path, config=config)
     policy.to(dev)
     policy.eval()
 

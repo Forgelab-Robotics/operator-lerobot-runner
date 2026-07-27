@@ -85,6 +85,9 @@ only-packages = false
 "convert" = "lerobot_inference/convert"
 "common" = "lerobot_inference/common"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.uv]
 prerelease = "allow"
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

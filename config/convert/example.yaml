@@ -23,7 +23,8 @@ output_prefix: null
 
 policy_type: act
 
-# 指定单一文件名；null = 自动发现
+# 指定单一文件名；支持 .safetensors 和旧版 tensor-only .ckpt。
+# null = 自动发现；目录中只有一个 policy.ckpt 时也会自动选择。
 checkpoint: null
 
 # 同目录示例 task.json（三路 left/right/top + ACT 默认超参）

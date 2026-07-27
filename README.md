@@ -54,11 +54,11 @@ uv run lerobot infer-once --help
 
 ```text
 <src-dir>/
-├── policy_epoch_*_standard.safetensors
+├── policy_epoch_*_standard.safetensors  # 新版，或单个旧版 policy.ckpt
 └── dataset_stats.pkl
 ```
 
-仅支持 `*_standard.safetensors`；默认自动选择最新文件。`task.json` 用于相机名称和 ACT 超参数，推荐提供训练时使用的文件；省略时使用默认的 left/right/top 三相机与 ACT 参数。
+支持 tensor-only `.safetensors` 和旧版 `.ckpt`；legacy `.ckpt` 使用 `torch.load(weights_only=True)`，不会执行 checkpoint 中的任意 Python 对象。`task.json` 用于相机名称和 ACT 超参数，推荐提供训练时使用的文件；省略时使用默认的 left/right/top 三相机与 ACT 参数。
 
 ```bash
 uv run lerobot convert --config examples/dora_convert/convert.yaml
@@ -80,8 +80,10 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 推理配置必须确保：
 
 1. `joints` 的顺序和数量与模型 action 维度一致（7D 对应 7 个关节，14D 对应 14 个关节）。
-2. `image_inputs` 与训练相机 key 一致。
-3. `policy.pretrained_path` 指向包含 `model.safetensors` 的目录。
+2. 默认使用 `joints` 构造 `observation.state`；若 state 与 action 的维度或顺序不同，单独配置顶层 `state_joints`。
+3. `image_inputs` 的 alias 必须与 checkpoint 的 image feature key 一致。
+4. `policy.pretrained_path` 指向包含 `model.safetensors` 的目录。
+5. `policy.torch_compile` 默认关闭；启用时应在控制开始前完成首次 forward warmup。
 
 ```bash
 # 不启动 Dora 的单次推理验证

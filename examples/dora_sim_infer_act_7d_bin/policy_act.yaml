@@ -1,0 +1,24 @@
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - { name: gripper, mode: prismatic, unit: millimeters }
+
+policy:
+  type: ACT
+  policy_id: piper_sim_place
+  auto_start: true
+  torch_compile: false
+  # null 使用标准 action chunk；设为 0.01 可启用 LeRobot temporal ensemble。
+  # 启用时 runner 会按 LeRobot 要求将有效 n_action_steps 设为 1。
+  temporal_ensemble_coeff: null
+  # README 中创建的本地 symlink；相对本 YAML 解析。
+  pretrained_path: ./model
+
+image_inputs:
+  image/left: left
+  image/right: right
+  image/top: top

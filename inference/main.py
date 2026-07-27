@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sys
 
+import numpy as np
 from forge_msgs import JointCommand
 from forge_policy import run_dora_policy_node
 
@@ -22,12 +23,20 @@ def _setup_policy(policy_config: dict):
 
 def _build_joint_command(action_np, config) -> JointCommand:
     names = config.joint_order
+    action = np.asarray(action_np)
+    if action.ndim != 1:
+        raise ValueError(f"policy action must be 1-D, got shape={action.shape}")
+    if len(action) != len(names):
+        raise ValueError(
+            f"policy action length={len(action)} does not match action joints={len(names)}"
+        )
+
     position = [0.0] * len(names)
     velocity = [0.0] * len(names)
     effort = [0.0] * len(names)
 
     for i, joint in enumerate(config.joints):
-        value = float(action_np[i]) if i < len(action_np) else 0.0
+        value = float(action[i])
         mode = joint.mode
         if mode == "velocity":
             velocity[i] = value
@@ -46,7 +55,7 @@ def run_infer(args) -> int:
     policy = _setup_policy(policy_config)
     return run_dora_policy_node(
         policy,
-        joint_order=config.joint_order,
+        joint_order=config.state_joint_order,
         image_input_id_to_alias=config.image_input_id_to_alias,
         alias_for_cameras=config.alias_for_cameras,
         build_action=lambda action_np: _build_joint_command(action_np, config),

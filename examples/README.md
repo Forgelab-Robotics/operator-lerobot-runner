@@ -7,10 +7,11 @@
 | [dora_convert](./dora_convert/) | policy_train → LeRobot 格式 |
 | [dora_infer_act_7d](./dora_infer_act_7d/) | 单臂 7D 真机（对标 single_real_inference） |
 | [dora_infer_act_14d](./dora_infer_act_14d/) | 双臂 14D 真机 |
+| [dora_sim_infer_act_7d_bin](./dora_sim_infer_act_7d_bin/) | 单臂 Piper MuJoCo + ACT 7D，全部节点使用本仓库 `bin/` |
 | [dora_infer_act](./dora_infer_act/) | 索引 |
 
 ```text
-joints 个数 == 模型 state/action 维数 == 机器人自由度
+默认配置：joints 个数 == 模型 state/action 维数 == 机器人自由度
 ```
 
 `dataflow.yaml` 中 forge 节点默认指向同级 `../../../forge_runtime/bin/...`（源码 `main.py` 已注释）；策略节点用本仓库 `../../bin/lerobot_infer/lerobot_infer`（需先 `bash scripts/build.sh`）。

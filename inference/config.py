@@ -28,11 +28,17 @@ class PolicyNodeConfig:
     policy: dict[str, Any]
     auto_start: bool = False
     image_input_id_to_alias: dict[str, str] = field(default_factory=dict)
+    state_joints: list[str] = field(default_factory=list)
 
     @property
     def joint_order(self) -> list[str]:
-        """关节名称顺序（与 task_robot / simulator 一致）。"""
+        """动作关节顺序（与 JointCommand / task_robot 一致）。"""
         return [j.name for j in self.joints]
+
+    @property
+    def state_joint_order(self) -> list[str]:
+        """观测状态顺序；未单独配置时沿用动作关节顺序。"""
+        return self.state_joints or self.joint_order
 
     @property
     def image_input_ids(self) -> set[str]:
@@ -45,26 +51,31 @@ class PolicyNodeConfig:
 
     def runtime_policy_config(self) -> dict[str, Any]:
         """生成策略运行时配置，补齐可由节点配置推断的字段。"""
+        state_dim = len(self.state_joint_order)
+        action_dim = len(self.joints)
         policy_config = {
             **self.policy,
             "auto_start": self.auto_start,
             "camera_names": self.alias_for_cameras,
-            "joint_count": len(self.joints),
+            # joint_count 保留给尚未迁移的策略；ACT 使用分离后的两个维度。
+            "joint_count": action_dim,
+            "state_joint_count": state_dim,
+            "action_joint_count": action_dim,
         }
-        # 与 pick_and_place 相同：ACT 的 state_dim 必须等于 joints 数量
         ptype = str(policy_config.get("type", "")).strip()
         if ptype in {"ACT", "act"}:
-            inferred_state_dim = len(self.joints)
-            raw_state_dim = policy_config.get("state_dim", inferred_state_dim)
-            try:
-                state_dim = int(raw_state_dim)
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"policy.state_dim 必须为整数: {raw_state_dim!r}") from exc
-            if state_dim != inferred_state_dim:
-                raise ValueError(
-                    f"policy.state_dim={state_dim} 与 joints 数量={inferred_state_dim} 不一致"
-                )
-            policy_config["state_dim"] = state_dim
+            policy_config["state_dim"] = _validated_dimension(
+                policy_config.get("state_dim", state_dim),
+                expected=state_dim,
+                name="policy.state_dim",
+                source="state_joints",
+            )
+            policy_config["action_dim"] = _validated_dimension(
+                policy_config.get("action_dim", action_dim),
+                expected=action_dim,
+                name="policy.action_dim",
+                source="joints",
+            )
         return policy_config
 
     @classmethod
@@ -73,21 +84,13 @@ class PolicyNodeConfig:
         if not joints_raw:
             raise ValueError("joints 或 joint_order 不能为空")
 
-        joints: list[JointConfig] = []
-        for item in joints_raw:
-            if isinstance(item, str):
-                joints.append(JointConfig(name=item))
-            elif isinstance(item, dict) and "name" in item:
-                joints.append(
-                    JointConfig(
-                        name=str(item["name"]),
-                        mode=str(item.get("mode", "position")),
-                        unit=str(item.get("unit", "radians")),
-                        type=str(item.get("type", item.get("joint_type", "actuator"))),
-                    )
-                )
-            else:
-                raise ValueError(f"joint 项须为字符串或包含 name 的字典: {item!r}")
+        joints = _parse_action_joints(joints_raw)
+        state_joints_raw = data.get("state_joints")
+        state_joints = (
+            _parse_state_joints(state_joints_raw)
+            if state_joints_raw is not None
+            else [joint.name for joint in joints]
+        )
 
         policy = data.get("policy", {})
         if not policy or not policy.get("type"):
@@ -98,12 +101,21 @@ class PolicyNodeConfig:
             raise ValueError("image_inputs 不能为空，且必须为 dict[str, str]")
 
         image_input_id_to_alias = {
-            str(input_id): str(alias) for input_id, alias in image_inputs.items()
+            str(input_id).strip(): str(alias).strip() for input_id, alias in image_inputs.items()
         }
+        if any(
+            not input_id or not alias
+            for input_id, alias in image_input_id_to_alias.items()
+        ):
+            raise ValueError("image_inputs 的 input ID 和 alias 均不能为空")
+        aliases = list(image_input_id_to_alias.values())
+        if len(set(aliases)) != len(aliases):
+            raise ValueError("image_inputs 的 alias 必须唯一，不能让多路输入覆盖同一相机")
 
         return cls(
             joints=joints,
             policy=policy,
+            state_joints=state_joints,
             auto_start=_as_bool(policy.get("auto_start", data.get("auto_start", False))),
             image_input_id_to_alias=image_input_id_to_alias,
         )
@@ -132,6 +144,54 @@ class PolicyNodeConfig:
 
 # 兼容旧导入名
 InferenceNodeConfig = PolicyNodeConfig
+
+
+def _parse_action_joints(items: Any) -> list[JointConfig]:
+    if not isinstance(items, list) or not items:
+        raise ValueError("joints 必须为非空列表")
+    joints: list[JointConfig] = []
+    for item in items:
+        if isinstance(item, str):
+            joints.append(JointConfig(name=item))
+        elif isinstance(item, dict) and "name" in item:
+            joints.append(
+                JointConfig(
+                    name=str(item["name"]),
+                    mode=str(item.get("mode", "position")),
+                    unit=str(item.get("unit", "radians")),
+                    type=str(item.get("type", item.get("joint_type", "actuator"))),
+                )
+            )
+        else:
+            raise ValueError(f"joint 项须为字符串或包含 name 的字典: {item!r}")
+    return joints
+
+
+def _parse_state_joints(items: Any) -> list[str]:
+    if not isinstance(items, list) or not items:
+        raise ValueError("state_joints 必须为非空列表")
+    names: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            name = item
+        elif isinstance(item, dict) and "name" in item:
+            name = str(item["name"])
+        else:
+            raise ValueError(f"state_joints 项须为字符串或包含 name 的字典: {item!r}")
+        if not name:
+            raise ValueError("state_joints 中的关节名不能为空")
+        names.append(name)
+    return names
+
+
+def _validated_dimension(value: Any, *, expected: int, name: str, source: str) -> int:
+    try:
+        dimension = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{name} 必须为整数: {value!r}") from exc
+    if dimension != expected:
+        raise ValueError(f"{name}={dimension} 与 {source} 数量={expected} 不一致")
+    return dimension
 
 
 def _as_bool(value: Any) -> bool:

@@ -1,5 +1,6 @@
 # 双臂 ACT（14D）— lerobot_inference 策略节点配置
-# joints 与 task_robot.yaml 一致（先左后右）；维数须等于 pretrained_model。
+# joints 与 task_robot.yaml 的动作顺序一致（先左后右）；默认也作为 state 顺序。
+# 若 state/action 维度或顺序不同，可另行配置顶层 state_joints。
 #
 # smoke（仓库根目录）：
 #   uv run lerobot infer-once --config examples/dora_infer_act_14d/policy_act.yaml
@@ -54,7 +55,7 @@ policy:
   type: ACT
   auto_start: false
   policy_id: default
-  # 默认启用；设为 false 可关闭 torch.compile(backbone)
+  # 默认关闭；启用前应预留首次 forward 的编译 warmup 时间
   # torch_compile: true
   # LeRobot 产物目录（含 model.safetensors）；必须为 14D
   pretrained_path: ../../test_convert/out_put/converted

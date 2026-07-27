@@ -8,6 +8,7 @@ from pathlib import Path
 
 _STANDARD_PATTERN = re.compile(r"^policy_epoch_(\d+)_standard\.safetensors$")
 _FLASH_EPOCH_PATTERN = re.compile(r"^policy_epoch_(\d+)\.safetensors$")
+_SUPPORTED_CHECKPOINT_SUFFIXES = frozenset({".safetensors", ".ckpt"})
 
 
 @dataclass(frozen=True)
@@ -88,8 +89,11 @@ def _resolve_explicit_checkpoint(src_dir: Path, checkpoint: str) -> Path:
             candidate = src_dir / Path(checkpoint).name
     if not candidate.is_file():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint}")
-    if candidate.suffix != ".safetensors":
-        raise ValueError(f"Checkpoint must be a .safetensors file, got {candidate.name}")
+    if candidate.suffix.lower() not in _SUPPORTED_CHECKPOINT_SUFFIXES:
+        raise ValueError(
+            "Checkpoint must be a .safetensors or legacy .ckpt file, "
+            f"got {candidate.name}"
+        )
     return candidate.resolve()
 
 
@@ -107,7 +111,8 @@ def discover_convert_jobs(
     2. 任意个 ``policy_epoch_*_standard.safetensors``（含仅 1 个）→ 全部转换，
        各写到 ``{prefix}/epoch_XXXXXX/``。
     3. 目录里只有一个无法解析轮次的 ``*.safetensors`` → ``{prefix}/single/``。
-    4. 否则报错。
+    4. 目录里没有 safetensors 且只有一个 legacy ``*.ckpt`` → ``{prefix}/single/``。
+    5. 否则报错。
 
     ``prefix`` 默认取 ``src_dir`` 目录名，可用 ``output_prefix`` 覆盖。
     """
@@ -137,9 +142,18 @@ def discover_convert_jobs(
         return [_job_for_checkpoint(prefix, safetensors[0])]
 
     if not safetensors:
+        legacy_checkpoints = sorted(path for path in src_dir.glob("*.ckpt") if path.is_file())
+        if len(legacy_checkpoints) == 1:
+            return [_job_for_checkpoint(prefix, legacy_checkpoints[0])]
+        if legacy_checkpoints:
+            raise FileNotFoundError(
+                f"Ambiguous legacy checkpoints under {src_dir}: "
+                f"{[path.name for path in legacy_checkpoints]}. Provide --checkpoint FILENAME."
+            )
         raise FileNotFoundError(
-            f"No .safetensors under {src_dir}. "
-            "Expect policy_epoch_*_standard.safetensors, or a single .safetensors file."
+            f"No .safetensors or .ckpt under {src_dir}. Expect "
+            "policy_epoch_*_standard.safetensors, a single .safetensors, "
+            "or a single legacy .ckpt file."
         )
 
     flash_only = [

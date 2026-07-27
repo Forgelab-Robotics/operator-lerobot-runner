@@ -27,13 +27,19 @@ joints:
     mode: position
     unit: millimeters
 
+# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
+# 未配置时默认沿用上面的 joints。
+# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
 policy:
   type: ACT
   auto_start: false
   policy_id: default
 
-  # LeRobot 产物（含 model.safetensors）；维数须等于 len(joints)
+  # LeRobot 产物（含 model.safetensors）；state/action 维度分别与配置对齐
   pretrained_path: /path/to/pretrained_model
+  # 默认 false；启用前应在控制开始前完成编译 warmup
+  # torch_compile: true
 
   # Pi0.5：
   # type: pi05

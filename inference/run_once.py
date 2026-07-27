@@ -14,7 +14,7 @@ from lerobot_inference.inference.policies.registry import create_policy_adapter
 
 def _build_observation(config, args) -> dict[str, np.ndarray]:
     rng = np.random.default_rng(args.seed)
-    state_dim = args.state_dim or len(config.joint_order)
+    state_dim = args.state_dim or len(config.state_joint_order)
     observation: dict[str, np.ndarray] = {
         "observation.state": rng.normal(size=state_dim).astype(np.float32),
     }

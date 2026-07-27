@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def maybe_compile_policy(
     policy: PreTrainedPolicy,
     *,
-    enabled: bool = True,
+    enabled: bool = False,
 ) -> PreTrainedPolicy:
     """Compile ACT vision backbone when enabled (ResNet IntermediateLayerGetter).
 
@@ -39,8 +39,8 @@ def maybe_compile_policy(
 
 
 def compile_enabled_from_policy_config(policy_config: dict[str, Any]) -> bool:
-    """Read ``policy.torch_compile`` (default True)."""
-    raw = policy_config.get("torch_compile", True)
+    """Read ``policy.torch_compile`` (default False)."""
+    raw = policy_config.get("torch_compile", False)
     if isinstance(raw, str):
         return raw.strip().lower() in {"1", "true", "yes", "on"}
     return bool(raw)
