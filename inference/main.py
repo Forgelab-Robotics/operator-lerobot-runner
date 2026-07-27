@@ -30,6 +30,8 @@ def _build_joint_command(action_np, config) -> JointCommand:
         raise ValueError(
             f"policy action length={len(action)} does not match action joints={len(names)}"
         )
+    if not np.isfinite(action).all():
+        raise ValueError("policy action must contain only finite values")
 
     position = [0.0] * len(names)
     velocity = [0.0] * len(names)
@@ -53,15 +55,21 @@ def run_infer(args) -> int:
     config = load_config(config_path=getattr(args, "config", None))
     policy_config = config.runtime_policy_config()
     policy = _setup_policy(policy_config)
-    return run_dora_policy_node(
-        policy,
-        joint_order=config.state_joint_order,
-        image_input_id_to_alias=config.image_input_id_to_alias,
-        alias_for_cameras=config.alias_for_cameras,
-        build_action=lambda action_np: _build_joint_command(action_np, config),
-        policy_id=str(policy_config.get("policy_id", "default")),
-        auto_start=bool(policy_config.get("auto_start", False)),
-    )
+    try:
+        return run_dora_policy_node(
+            policy,
+            joint_order=config.state_joint_order,
+            image_input_id_to_alias=config.image_input_id_to_alias,
+            alias_for_cameras=config.alias_for_cameras,
+            build_action=lambda action_np: _build_joint_command(action_np, config),
+            policy_id=str(policy_config.get("policy_id", "default")),
+            auto_start=bool(policy_config.get("auto_start", False)),
+            call_lifecycle_hooks=True,
+        )
+    finally:
+        stop = getattr(policy, "stop", None)
+        if callable(stop):
+            stop()
 
 
 def main() -> int:

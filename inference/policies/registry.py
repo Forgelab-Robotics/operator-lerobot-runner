@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Callable
 from typing import Any
@@ -9,9 +10,14 @@ from typing import Any
 from lerobot_inference.inference.artifact_resolver import resolve_pretrained_path
 from lerobot_inference.inference.policies.act import ACTPolicyAdapter
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
-from lerobot_inference.inference.policies.pi05 import PI05PolicyAdapter
+from lerobot_inference.inference.policies.pi05 import (
+    PI05AsyncRTCPolicyAdapter,
+    PI05PolicyAdapter,
+)
 
 PolicyFactory = Callable[[dict[str, Any], str], LerobotPolicyAdapter]
+
+logger = logging.getLogger(__name__)
 
 _POLICY_ALIASES: dict[str, str] = {
     "act": "act",
@@ -70,10 +76,19 @@ def planned_policy_types() -> list[str]:
 
 
 def _expected_image_keys(policy_config: dict[str, Any], camera_aliases: list[str]) -> set[str]:
-    explicit = policy_config.get("expected_image_keys")
-    if explicit:
-        return {str(key) for key in explicit}
-    return {f"observation.images.{alias}" for alias in camera_aliases}
+    derived = {f"observation.images.{alias}" for alias in camera_aliases}
+    if "expected_image_keys" not in policy_config:
+        return derived
+    explicit = policy_config["expected_image_keys"]
+    if not isinstance(explicit, (list, tuple, set, frozenset)):
+        raise ValueError("policy.expected_image_keys must be a list of observation image keys")
+    explicit_keys = {str(key) for key in explicit}
+    if explicit_keys != derived:
+        raise ValueError(
+            "policy.expected_image_keys must match keys produced by image_inputs: "
+            f"expected_image_keys={sorted(explicit_keys)}, image_inputs={sorted(derived)}"
+        )
+    return derived
 
 
 def _act_runtime_dimensions(
@@ -132,19 +147,113 @@ def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotP
 register_policy_type("act", _create_act)
 
 
+def _pi05_policy_config_overrides(
+    policy_config: dict[str, Any],
+    *,
+    async_rtc: bool = False,
+) -> dict[str, Any]:
+    runtime_keys = (
+        "compile_model",
+        "compile_mode",
+        "gradient_checkpointing",
+        "n_action_steps",
+        "num_inference_steps",
+        "use_amp",
+    )
+    overrides = {key: policy_config[key] for key in runtime_keys if key in policy_config}
+    rtc_raw = policy_config.get("rtc")
+    if rtc_raw is not None and not isinstance(rtc_raw, dict):
+        raise ValueError("policy.rtc must be a mapping")
+    rtc = dict(rtc_raw or {})
+    rtc_keys = (
+        "enabled",
+        "prefix_attention_schedule",
+        "max_guidance_weight",
+        "execution_horizon",
+        "debug",
+        "debug_maxlen",
+    )
+    unknown_rtc_keys = set(rtc) - {*rtc_keys, "queue_threshold"}
+    if unknown_rtc_keys:
+        raise ValueError(f"Unknown policy.rtc keys: {sorted(unknown_rtc_keys)}")
+    if async_rtc:
+        if policy_config.get("compile_model") is True:
+            raise ValueError(
+                "compile_model=true is unsupported for async_rtc without warmup semantics"
+            )
+        overrides["compile_model"] = False
+        rtc["enabled"] = True
+    overrides.update(
+        {
+            f"rtc_config.{key}": rtc[key]
+            for key in rtc_keys
+            if key in rtc
+        }
+    )
+    return overrides
+
+
 def _create_pi05(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
     tokenizer_path = policy_config.get("tokenizer_path")
     if not tokenizer_path:
         raise ValueError("policy.tokenizer_path is required for Pi0.5 inference.")
+    mode = str(policy_config.get("inference_mode", "sync")).strip().lower()
+    if mode not in {"sync", "async_rtc", "rtc"}:
+        raise ValueError(
+            "policy.inference_mode must be one of: sync, async_rtc, rtc"
+        )
+    async_rtc = mode in {"async_rtc", "rtc"}
+
+    legacy_threshold = policy_config.get("get_actions_threshold")
+    if legacy_threshold is not None and not async_rtc:
+        threshold = int(legacy_threshold)
+        if threshold != 0:
+            raise ValueError(
+                "nonzero policy.get_actions_threshold requires inference_mode=async_rtc"
+            )
+        logger.warning(
+            "Ignoring deprecated policy.get_actions_threshold=0; remove it from the config"
+        )
+
     camera_aliases = list(policy_config.get("camera_names") or [])
-    return PI05PolicyAdapter.from_pretrained(
-        pretrained_path,
-        tokenizer_path=str(tokenizer_path),
-        device=policy_config.get("device"),
-        instruction=str(policy_config.get("instruction", "")),
-        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
-        get_actions_threshold=int(policy_config.get("get_actions_threshold", 0)),
+    common_kwargs = {
+        "tokenizer_path": str(tokenizer_path),
+        "device": policy_config.get("device"),
+        "instruction": str(policy_config.get("instruction", "")),
+        "expected_image_keys": _expected_image_keys(policy_config, camera_aliases),
+        "policy_config_overrides": _pi05_policy_config_overrides(
+            policy_config,
+            async_rtc=async_rtc,
+        ),
+    }
+    if async_rtc:
+        rtc = dict(policy_config.get("rtc") or {})
+        raw_queue_threshold = rtc.get(
+            "queue_threshold",
+            legacy_threshold if legacy_threshold is not None else 30,
+        )
+        if isinstance(raw_queue_threshold, bool):
+            raise ValueError("policy.rtc.queue_threshold must be an integer")
+        queue_threshold = int(raw_queue_threshold)
+        adapter = PI05AsyncRTCPolicyAdapter.from_pretrained(
+            pretrained_path,
+            **common_kwargs,
+            control_hz=float(policy_config.get("control_hz", 50.0)),
+            queue_threshold=queue_threshold,
+        )
+    else:
+        adapter = PI05PolicyAdapter.from_pretrained(
+            pretrained_path,
+            **common_kwargs,
+        )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    adapter.configure_joint_names(
+        list(policy_config.get("state_joint_names") or []),
+        list(policy_config.get("action_joint_names") or []),
     )
+    return adapter
 
 
 register_policy_type("pi05", _create_pi05)

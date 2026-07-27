@@ -24,5 +24,5 @@ class LerobotPolicyAdapter(ABC):
         self,
         observation: dict[str, Any],
         alias_for_cameras: list[str] | None = None,
-    ) -> np.ndarray:
-        """Return a single environment action vector."""
+    ) -> np.ndarray | None:
+        """Return one action vector, or None when an async backend is not ready."""

@@ -1,0 +1,33 @@
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - { name: gripper, mode: prismatic, unit: millimeters }
+
+policy:
+  type: pi05
+  policy_id: piper_sim_pi05_async
+  auto_start: true
+  instruction: pick up the object and place it in the target
+  compile_model: false
+  gradient_checkpointing: false
+
+  # 非阻塞 LeRobot Real-Time Chunking backend。
+  inference_mode: async_rtc
+  control_hz: 50
+  rtc:
+    execution_horizon: 10
+    queue_threshold: 30
+    max_guidance_weight: 10.0
+    prefix_attention_schedule: LINEAR
+
+  pretrained_path: ./model
+  tokenizer_path: ./tokenizer
+
+image_inputs:
+  image/top: top
+  image/angle: angle
+  image/left_pillar: left_pillar

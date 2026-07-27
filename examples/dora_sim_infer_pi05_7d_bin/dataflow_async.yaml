@@ -1,0 +1,54 @@
+# 单臂 Piper MuJoCo + PI0.5 async RTC；所有节点使用 ../../bin 下的二进制。
+
+nodes:
+  - id: mujoco
+    path: ../../bin/mujoco_sim
+    args: --config ./simulator.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      action: task_robot/action
+      sim_command: task_robot/sim_command
+    outputs:
+      - proprio_state
+      - image/top
+      - image/angle
+      - image/left_pillar
+      - sim_status
+      - pose_set
+
+  - id: task_robot
+    path: ../../bin/task_robot
+    args: --config ./task_robot.yaml
+    inputs:
+      action: policy/action
+      proprio_state: mujoco/proprio_state
+      image/top: mujoco/image/top
+      image/angle: mujoco/image/angle
+      image/left_pillar: mujoco/image/left_pillar
+    outputs:
+      - action
+      - robot_0/action
+      - proprio_state
+      - sim_command
+      - image/top
+      - image/angle
+      - image/left_pillar
+
+  - id: policy
+    path: ../../bin/lerobot_infer/lerobot_infer
+    args: infer --config ./policy_pi05_async.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      proprio_state: task_robot/proprio_state
+      image/top: task_robot/image/top
+      image/angle: task_robot/image/angle
+      image/left_pillar: task_robot/image/left_pillar
+    outputs:
+      - action
+
+  - id: image_viewer
+    path: ../../bin/image_viewer
+    inputs:
+      image/top: task_robot/image/top
+      image/angle: task_robot/image/angle
+      image/left_pillar: task_robot/image/left_pillar

@@ -207,6 +207,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0,
         help="随机种子（默认 0）",
     )
+    p_once.add_argument(
+        "--async-timeout",
+        type=float,
+        default=120.0,
+        help="异步 backend 等待首个 action 的超时秒数（默认 120）",
+    )
     p_once.set_defaults(_handler="infer-once")
 
     return parser

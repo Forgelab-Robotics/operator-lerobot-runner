@@ -1,0 +1,26 @@
+joints:
+  - { name: joint1, mode: position, unit: radians }
+  - { name: joint2, mode: position, unit: radians }
+  - { name: joint3, mode: position, unit: radians }
+  - { name: joint4, mode: position, unit: radians }
+  - { name: joint5, mode: position, unit: radians }
+  - { name: joint6, mode: position, unit: radians }
+  - { name: gripper, mode: prismatic, unit: millimeters }
+
+policy:
+  type: pi05
+  policy_id: piper_sim_pi05
+  auto_start: true
+  # 必须与训练数据中的 task 文本对齐。
+  instruction: pick up the object and place it in the target
+  # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
+  compile_model: false
+  gradient_checkpointing: false
+  # README 中创建的本地 symlink；均相对本 YAML 解析。
+  pretrained_path: ./model
+  tokenizer_path: ./tokenizer
+
+image_inputs:
+  image/top: top
+  image/angle: angle
+  image/left_pillar: left_pillar

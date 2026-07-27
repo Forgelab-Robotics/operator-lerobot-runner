@@ -96,15 +96,23 @@ dora run dataflow.yaml
 
 可参考 `examples/dora_infer_act_7d/` 和 `examples/dora_infer_act_14d/` 的完整 dataflow 与策略配置。
 
-Pi0.5 还需要 tokenizer 路径和语言指令：
+Pi0.5 还需要本地 tokenizer 路径和语言指令：
 
 ```yaml
 policy:
   type: pi05
   pretrained_path: /path/to/pretrained_model
-  tokenizer_path: /path/to/paligemma-tokenizer
+  tokenizer_path: /path/to/local-paligemma-tokenizer
   instruction: pick up the object and place it in the box
 ```
+
+Pi0.5 提供两个显式 backend：默认 `inference_mode: sync` 使用 LeRobot 原生
+`select_action()`；`inference_mode: async_rtc` 使用后台 `predict_action_chunk()`、
+`LatencyTracker` 和 `ActionQueue.merge()` 实现非阻塞 Real-Time Chunking。异步实现
+不访问 policy 私有 action queue，也不使用旧版按队列长度跳帧的启发式逻辑。
+切换 instruction、pause、stop 或 reset 时会丢弃旧 chunk。加载过程保持 pretrained
+目录只读，并在权重损坏或与 config 不兼容时直接失败，不会回退到随机初始化模型。
+完整配置见 `examples/dora_sim_infer_pi05_7d_bin/`。
 
 ## 打包
 

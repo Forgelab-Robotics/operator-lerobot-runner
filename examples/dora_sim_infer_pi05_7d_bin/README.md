@@ -1,0 +1,119 @@
+# Piper MuJoCo + PI0.5 7D（二进制运行）
+
+这个示例使用 `lerobot_runner/bin/` 中的本地二进制完成端到端仿真推理：
+
+```text
+mujoco_sim → task_robot → lerobot_infer → task_robot → mujoco_sim
+     └──────────────── image_viewer ────────────────┘
+```
+
+场景为 `bin/050f9b6f-30e7-4dab-a4c4-0a4aed9b8adb_scene/scene.xml`。策略输入为 7D state、语言 instruction，以及 `top/angle/left_pillar` 三路 640×480 RGB 图像。
+
+## 1. 准备策略二进制
+
+首次运行或 PI0.5 源码更新后，在 `lerobot_runner` 根目录构建：
+
+```bash
+bash scripts/build.sh
+```
+
+产物位于：
+
+```text
+bin/lerobot_infer/lerobot_infer
+```
+
+## 2. 绑定模型和 tokenizer
+
+同步与异步配置都使用本目录下的 `model` 与 `tokenizer` symlink：
+
+```bash
+cd examples/dora_sim_infer_pi05_7d_bin
+ln -s /path/to/pi05_pretrained_model model
+ln -s /path/to/local_paligemma_tokenizer tokenizer
+```
+
+模型必须匹配：
+
+- state/action：7D
+- image features：`observation.images.top`、`observation.images.angle`、`observation.images.left_pillar`
+- LeRobot 0.6 processor schema
+
+`model`、`tokenizer` 和 `out/` 均被 Git 忽略，不会提交机器相关路径或运行日志。
+
+## 3. 设置 instruction
+
+修改 `policy_pi05.yaml`：
+
+```yaml
+instruction: pick up the object and place it in the target
+```
+
+该文本必须尽量与训练数据中的 task 文本一致。checkpoint 的 `train_config.json` 只记录了数据集路径，没有保存 task 内容，因此示例中的 instruction 只是可编辑默认值。
+
+## 4. 冒烟测试
+
+先确认模型、tokenizer、processor 和严格权重加载均正常：
+
+```bash
+# 同步 select_action
+../../bin/lerobot_infer/lerobot_infer infer-once --config ./policy_pi05.yaml
+
+# 异步 RTC；等待后台首个 action，默认超时 120 秒
+../../bin/lerobot_infer/lerobot_infer infer-once \
+  --config ./policy_pi05_async.yaml --async-timeout 120
+```
+
+这个 checkpoint 的权重约 7 GB，实际加载与 forward 需要显著更多显存。本机 8 GB RTX 5060 已验证在模型初始化阶段 CUDA OOM；请在显存足够的环境运行真实推理。
+
+## 5. 运行仿真
+
+```bash
+cd examples/dora_sim_infer_pi05_7d_bin
+
+# 同步模式
+dora run dataflow.yaml
+
+# LeRobot async RTC 模式
+dora run dataflow_async.yaml
+
+# 若 dora 未加入 PATH：
+# ../../../../../forge_runtime/.venv/bin/dora run dataflow_async.yaml
+```
+
+两套策略均配置为 `auto_start: true`，不依赖 gateway。按 `Ctrl+C` 停止。
+
+## 推理时序
+
+### 同步 `dataflow.yaml`
+
+1. 收集一次完整 observation；
+2. 通过原生 `select_action()` 同步生成 50-step action chunk；
+3. 以 50 Hz 逐步消费 action；
+4. queue 耗尽后再生成下一段。
+
+chunk 边界会暂停等待模型推理。
+
+### 异步 RTC `dataflow_async.yaml`
+
+1. 每个 tick 将最新 observation 发布给后台线程；
+2. 主控制循环通过 LeRobot `ActionQueue.get()` 非阻塞取 action；
+3. queue 低于 `queue_threshold` 时，后台调用 `predict_action_chunk()`；
+4. 使用 `LatencyTracker` 计算 inference delay；
+5. 使用 `ActionQueue.merge()` 和模型 RTC prefix guidance 合并新旧 chunk。
+
+队列尚未就绪时策略返回 `None`，Dora tick 不会阻塞。后台异常会在主线程明确抛出，不会永久等待。
+
+## 配置对应关系
+
+- `simulator.yaml`：Piper joint、gripper 派生状态及三路相机映射。
+- `task_robot.yaml`：转发 simulation state/image，并把 policy `JointCommand` 下发给 simulator。
+- `policy_pi05.yaml`：同步 7D PI0.5 配置。
+- `policy_pi05_async.yaml`：异步 LeRobot RTC 配置。
+- `dataflow.yaml` / `dataflow_async.yaml`：同步/异步拓扑；所有节点均引用 `../../bin/`。
+
+state/action 顺序均为：
+
+```text
+joint1, joint2, joint3, joint4, joint5, joint6, gripper
+```

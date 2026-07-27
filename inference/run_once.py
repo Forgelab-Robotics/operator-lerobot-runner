@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 
 import numpy as np
 
@@ -34,15 +35,33 @@ def run_infer_once(args) -> int:
     policy = create_policy_adapter(config.runtime_policy_config())
     policy.reset()
     observation = _build_observation(config, args)
-    action = policy.generate_action(observation, config.alias_for_cameras)
-    payload = {
-        "policy_type": config.policy.get("type"),
-        "pretrained_path": config.runtime_policy_config().get("pretrained_path"),
-        "action": action.tolist(),
-        "action_dim": int(action.shape[0]),
-    }
-    print(json.dumps(payload, indent=2))
-    return 0
+    timeout = float(getattr(args, "async_timeout", 120.0))
+    if not np.isfinite(timeout) or timeout <= 0:
+        raise ValueError("--async-timeout must be finite and positive")
+    deadline = time.monotonic() + timeout
+    try:
+        action = None
+        while action is None:
+            action = policy.generate_action(observation, config.alias_for_cameras)
+            if action is not None:
+                break
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"async policy did not produce an action within {timeout:.1f}s"
+                )
+            time.sleep(0.05)
+        payload = {
+            "policy_type": config.policy.get("type"),
+            "pretrained_path": config.runtime_policy_config().get("pretrained_path"),
+            "action": action.tolist(),
+            "action_dim": int(action.shape[0]),
+        }
+        print(json.dumps(payload, indent=2))
+        return 0
+    finally:
+        stop = getattr(policy, "stop", None)
+        if callable(stop):
+            stop()
 
 
 def main() -> int:

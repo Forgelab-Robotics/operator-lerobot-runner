@@ -61,6 +61,8 @@ class PolicyNodeConfig:
             "joint_count": action_dim,
             "state_joint_count": state_dim,
             "action_joint_count": action_dim,
+            "state_joint_names": list(self.state_joint_order),
+            "action_joint_names": list(self.joint_order),
         }
         ptype = str(policy_config.get("type", "")).strip()
         if ptype in {"ACT", "act"}:

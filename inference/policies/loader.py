@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,11 @@ from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.processor import PolicyProcessorPipeline
 
 logger = logging.getLogger(__name__)
+
+PolicyLoader = Callable[
+    [type[PreTrainedPolicy], Path, PreTrainedConfig],
+    PreTrainedPolicy,
+]
 
 
 def resolve_device(requested: str | None = None) -> torch.device:
@@ -30,6 +36,7 @@ def load_policy_bundle(
     device: str | None = None,
     preprocessor_overrides: dict[str, Any] | None = None,
     policy_config_overrides: dict[str, Any] | None = None,
+    policy_loader: PolicyLoader | None = None,
 ) -> tuple[PreTrainedPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, PreTrainedConfig]:
     """Load a policy and its processors with optional checkpoint config overrides."""
     path = Path(pretrained_path).expanduser().resolve()
@@ -41,7 +48,11 @@ def load_policy_bundle(
     dev = resolve_device(device or getattr(config, "device", None))
     config.device = str(dev)
     policy_cls = get_policy_class(config.type)
-    policy = policy_cls.from_pretrained(path, config=config)
+    policy = (
+        policy_loader(policy_cls, path, config)
+        if policy_loader is not None
+        else policy_cls.from_pretrained(path, config=config)
+    )
     policy.to(dev)
     policy.eval()
 

@@ -43,8 +43,14 @@ policy:
 
   # Pi0.5：
   # type: pi05
-  # tokenizer_path: /path/to/paligemma-tokenizer
+  # tokenizer_path: /path/to/local-paligemma-tokenizer
   # instruction: pick up the object and place it in the box
+  # inference_mode: sync  # 默认，原生 select_action chunk queue
+  # 异步 LeRobot RTC：
+  # inference_mode: async_rtc
+  # control_hz: 50
+  # rtc: { execution_horizon: 10, queue_threshold: 30 }
+  # n_action_steps 由 checkpoint config 决定。
 
 image_inputs:
   image/left: left

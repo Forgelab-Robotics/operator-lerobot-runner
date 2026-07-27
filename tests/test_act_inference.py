@@ -333,6 +333,12 @@ def test_joint_command_rejects_wrong_action_length() -> None:
         _build_joint_command(np.array([0.5, 0.6, 0.7], dtype=np.float32), config)
 
 
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), float("-inf")])
+def test_joint_command_rejects_non_finite_actions(invalid) -> None:
+    with pytest.raises(ValueError, match="finite values"):
+        _build_joint_command(np.array([0.5, invalid], dtype=np.float32), make_config())
+
+
 def test_joint_command_routes_each_control_mode() -> None:
     command = _build_joint_command(
         np.array([0.5, 0.6], dtype=np.float32),
