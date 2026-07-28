@@ -109,6 +109,21 @@ class FakeRTCPI05Policy(FakePI05Policy):
         )
 
 
+class GradientRTCPI05Policy(FakeRTCPI05Policy):
+    def __init__(self) -> None:
+        super().__init__()
+        self.guidance_count = 0
+
+    def predict_action_chunk(self, batch: dict, **kwargs) -> torch.Tensor:
+        if kwargs.get("prev_chunk_left_over") is not None:
+            with torch.enable_grad():
+                latent = torch.tensor(1.0, requires_grad=True)
+                denoised = latent * 2
+                torch.autograd.grad(denoised, latent)
+            self.guidance_count += 1
+        return super().predict_action_chunk(batch, **kwargs)
+
+
 class BlockingRTCPI05Policy(FakeRTCPI05Policy):
     def __init__(self) -> None:
         super().__init__()
@@ -316,6 +331,41 @@ def test_pi05_async_rtc_is_non_blocking_and_merges_native_queue() -> None:
         np.testing.assert_array_equal(action, [1.0, 2.0])
         assert policy.predict_count >= 1
         assert policy.select_batches == []
+    finally:
+        adapter.stop()
+
+
+def test_pi05_async_rtc_allows_prefix_guidance_autograd() -> None:
+    policy = GradientRTCPI05Policy()
+    adapter = PI05AsyncRTCPolicyAdapter(
+        policy,
+        FakeProcessor(),
+        FakeProcessor(),
+        expected_image_keys={"observation.images.front"},
+        control_hz=50.0,
+        queue_threshold=2,
+    )
+
+    try:
+        assert adapter.generate_action(make_observation()) is None
+        action = None
+        deadline = time.monotonic() + 2.0
+        while action is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+            action = adapter.generate_action(make_observation())
+
+        assert action is not None
+        guidance_deadline = time.monotonic() + 2.0
+        while (
+            policy.predict_count < 2
+            and not adapter.failed
+            and time.monotonic() < guidance_deadline
+        ):
+            time.sleep(0.01)
+
+        assert adapter.failed is False
+        assert policy.predict_count >= 2
+        assert policy.guidance_count >= 1
     finally:
         adapter.stop()
 

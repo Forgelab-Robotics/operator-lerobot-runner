@@ -395,7 +395,9 @@ class PI05AsyncRTCPolicyAdapter(PI05PolicyAdapter):
                 if self._device.type == "cuda" and bool(self._policy.config.use_amp)
                 else nullcontext()
             )
-            with torch.inference_mode(), autocast:
+            # RTC prefix guidance temporarily re-enables autograd inside LeRobot's
+            # denoiser, which torch.inference_mode() would make impossible.
+            with torch.no_grad(), autocast:
                 preprocessed = self._preprocessor(batch)
 
                 if previous_actions is not None and self._relative_step is not None:
