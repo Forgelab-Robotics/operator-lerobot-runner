@@ -13,6 +13,7 @@ from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
     PI05PolicyAdapter,
+    normalize_pi05_compatibility_mode,
 )
 
 PolicyFactory = Callable[[dict[str, Any], str], LerobotPolicyAdapter]
@@ -128,7 +129,9 @@ def _act_policy_config_overrides(policy_config: dict[str, Any]) -> dict[str, Any
 
 
 def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
-    from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
+    from lerobot_inference.inference.compile_utils import (
+        compile_enabled_from_policy_config,
+    )
 
     camera_aliases = list(policy_config.get("camera_names") or [])
     adapter = ACTPolicyAdapter.from_pretrained(
@@ -220,6 +223,9 @@ def _create_pi05(policy_config: dict[str, Any], pretrained_path: str) -> Lerobot
         "tokenizer_path": str(tokenizer_path),
         "device": policy_config.get("device"),
         "instruction": str(policy_config.get("instruction", "")),
+        "compatibility_mode": normalize_pi05_compatibility_mode(
+            policy_config.get("compatibility_mode")
+        ),
         "expected_image_keys": _expected_image_keys(policy_config, camera_aliases),
         "policy_config_overrides": _pi05_policy_config_overrides(
             policy_config,

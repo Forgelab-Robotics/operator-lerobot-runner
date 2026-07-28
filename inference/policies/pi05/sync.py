@@ -11,12 +11,16 @@ import torch
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.utils import prepare_observation_for_inference
 from lerobot.processor import PolicyProcessorPipeline, RelativeActionsProcessorStep
-
 from lerobot_inference.inference.observation import action_tensor_to_numpy
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.loader import load_policy_bundle
 
 from .assets import ensure_pi05_offline_assets, load_local_tokenizer
+from .compatibility import (
+    PI05_COMPATIBILITY_LEROBOT_044,
+    apply_pi05_compatibility,
+    prepare_observation_legacy_044,
+)
 from .loading import load_pi05_policy_strict
 
 logger = logging.getLogger(__name__)
@@ -40,6 +44,11 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
         self._postprocessor = postprocessor
         self._instruction = str(instruction)
         self._expected_image_keys = expected_image_keys
+        self._compatibility_mode = getattr(
+            policy,
+            "_lerobot_inference_compatibility_mode",
+            "native",
+        )
         self._queued_steps_remaining = 0
         try:
             self._device = next(policy.parameters()).device
@@ -56,6 +65,7 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
         instruction: str = "",
         expected_image_keys: set[str] | None = None,
         policy_config_overrides: dict[str, Any] | None = None,
+        compatibility_mode: str | None = None,
         allow_rtc: bool = False,
     ) -> PI05PolicyAdapter:
         path, local_tokenizer_path = ensure_pi05_offline_assets(
@@ -77,6 +87,7 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
         )
         if config.type != "pi05":
             raise ValueError(f"PI05PolicyAdapter expects type pi05, got {config.type!r}")
+        apply_pi05_compatibility(policy, preprocessor, compatibility_mode)
         rtc_config = getattr(config, "rtc_config", None)
         if (
             not allow_rtc
@@ -230,8 +241,16 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
         return prepared
 
     def _prepare_observation(self, observation: dict[str, Any]) -> dict[str, Any]:
+        copied = self._copy_observation(observation)
+        if self._compatibility_mode == PI05_COMPATIBILITY_LEROBOT_044:
+            return prepare_observation_legacy_044(
+                copied,
+                self._device,
+                task=self._instruction,
+                robot_type="",
+            )
         return prepare_observation_for_inference(
-            self._copy_observation(observation),
+            copied,
             self._device,
             task=self._instruction,
             robot_type="",

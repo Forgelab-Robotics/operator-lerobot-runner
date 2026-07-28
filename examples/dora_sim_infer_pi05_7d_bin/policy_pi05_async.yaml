@@ -11,18 +11,21 @@ policy:
   type: pi05
   policy_id: piper_sim_pi05_async
   auto_start: true
-  instruction: pick up the object and place it in the target
+  # PIPER_SIM_251225 旧部署使用的训练任务文本；不要改写为同义句。
+  instruction: Grab the blue cube and then place upon red cube
   compile_model: false
   gradient_checkpointing: false
+  # 此 checkpoint 由 LeRobot 0.4.x 训练，恢复其 state/image/language 推理语义。
+  compatibility_mode: lerobot_0_4_4
 
-  # 非阻塞 LeRobot Real-Time Chunking backend。
   inference_mode: async_rtc
   control_hz: 50
   rtc:
     execution_horizon: 10
     queue_threshold: 30
     max_guidance_weight: 10.0
-    prefix_attention_schedule: LINEAR
+    # 与 pick_and_place 旧 RTC 配置保持一致。
+    prefix_attention_schedule: EXP
 
   pretrained_path: ./model
   tokenizer_path: ./tokenizer

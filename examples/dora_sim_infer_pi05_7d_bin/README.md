@@ -37,21 +37,37 @@ ln -s /path/to/local_paligemma_tokenizer tokenizer
 
 - state/action：7D
 - image features：`observation.images.top`、`observation.images.angle`、`observation.images.left_pillar`
-- LeRobot 0.6 processor schema
+- 可由 LeRobot 0.6 加载的 processor schema
 
 `model`、`tokenizer` 和 `out/` 均被 Git 忽略，不会提交机器相关路径或运行日志。
 
 ## 3. 设置 instruction
 
-修改 `policy_pi05.yaml`：
+`PIPER_SIM_251225` 的旧部署配置使用以下训练任务文本：
 
 ```yaml
-instruction: pick up the object and place it in the target
+instruction: Grab the blue cube and then place upon red cube
 ```
 
-该文本必须尽量与训练数据中的 task 文本一致。checkpoint 的 `train_config.json` 只记录了数据集路径，没有保存 task 内容，因此示例中的 instruction 只是可编辑默认值。
+语言条件是模型输入的一部分，不应改写为看似等价的同义句。checkpoint 本身没有保存 task 文本，因此本示例以 `forge_runtime/examples/inference/policy.pi05.example.yaml` 中的已知部署值为准。若替换为其他 checkpoint，必须同步替换为对应训练数据中的 task 文本。
 
-## 4. 冒烟测试
+## 4. LeRobot 0.4.4 checkpoint 兼容
+
+`PIPER_SIM_251225` 使用旧 LeRobot PI0.5 实现训练和部署，两个 policy 配置都显式启用了：
+
+```yaml
+compatibility_mode: lerobot_0_4_4
+```
+
+该模式在 LeRobot 0.6 runtime 中恢复会影响模型输入分布的三项旧语义：
+
+- state prompt 固定补齐到 32 维后再离散化（本模型是 7 个 state + 25 个 padding）；
+- language embedding 乘以 `sqrt(hidden_dim)`；
+- 图像 tensor 转换及 resize/letterbox 使用 0.4.4 的数值语义。
+
+这些行为只作用于当前 policy 实例，不修改 checkpoint 文件，也不替换 LeRobot 0.6 的 processor pipeline、action queue 或 RTC。使用由 LeRobot 0.6+ 训练的 checkpoint 时应删除此配置，采用默认的 `native` 模式。
+
+## 5. 冒烟测试
 
 先确认模型、tokenizer、processor 和严格权重加载均正常：
 
@@ -66,7 +82,7 @@ instruction: pick up the object and place it in the target
 
 这个 checkpoint 的权重约 7 GB，实际加载与 forward 需要显著更多显存。本机 8 GB RTX 5060 已验证在模型初始化阶段 CUDA OOM；请在显存足够的环境运行真实推理。
 
-## 5. 运行仿真
+## 6. 运行仿真
 
 ```bash
 cd examples/dora_sim_infer_pi05_7d_bin
@@ -87,6 +103,8 @@ dora run dataflow_async.yaml
 
 ### 同步 `dataflow.yaml`
 
+这是与旧 `pick_and_place` 默认 PI0.5 配置最接近的对照基线：旧配置未启用 `rtc`，使用普通 action chunk。应先确认同步模式能够完成任务，再评估 RTC。
+
 1. 收集一次完整 observation；
 2. 通过原生 `select_action()` 同步生成 50-step action chunk；
 3. 以 50 Hz 逐步消费 action；
@@ -95,6 +113,8 @@ dora run dataflow_async.yaml
 chunk 边界会暂停等待模型推理。
 
 ### 异步 RTC `dataflow_async.yaml`
+
+RTC 会对 PI0.5 去噪过程施加 prefix guidance，因此不是把同步推理简单移到后台，动作结果也不保证与同步或旧版非 RTC 路径一致。本示例使用与旧 RTC 实现一致的 `EXP` attention schedule。
 
 1. 每个 tick 将最新 observation 发布给后台线程；
 2. 主控制循环通过 LeRobot `ActionQueue.get()` 非阻塞取 action；

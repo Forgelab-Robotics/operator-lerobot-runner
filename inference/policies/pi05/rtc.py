@@ -19,7 +19,6 @@ from lerobot.policies.rtc import (
     reanchor_relative_rtc_prefix,
 )
 from lerobot.processor import NormalizerProcessorStep, RelativeActionsProcessorStep
-
 from lerobot_inference.inference.observation import action_tensor_to_numpy
 
 from .sync import PI05PolicyAdapter
@@ -201,6 +200,7 @@ class PI05AsyncRTCPolicyAdapter(PI05PolicyAdapter):
         instruction: str = "",
         expected_image_keys: set[str] | None = None,
         policy_config_overrides: dict[str, Any] | None = None,
+        compatibility_mode: str | None = None,
         control_hz: float = 50.0,
         queue_threshold: int = 30,
     ) -> PI05AsyncRTCPolicyAdapter:
@@ -211,6 +211,7 @@ class PI05AsyncRTCPolicyAdapter(PI05PolicyAdapter):
             instruction=instruction,
             expected_image_keys=expected_image_keys,
             policy_config_overrides=policy_config_overrides,
+            compatibility_mode=compatibility_mode,
             allow_rtc=True,
         )
         return cls(

@@ -11,11 +11,13 @@ policy:
   type: pi05
   policy_id: piper_sim_pi05
   auto_start: true
-  # 必须与训练数据中的 task 文本对齐。
-  instruction: pick up the object and place it in the target
+  # PIPER_SIM_251225 旧部署使用的训练任务文本；不要改写为同义句。
+  instruction: Grab the blue cube and then place upon red cube
   # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
   compile_model: false
   gradient_checkpointing: false
+  # 此 checkpoint 由 LeRobot 0.4.x 训练，恢复其 state/image/language 推理语义。
+  compatibility_mode: lerobot_0_4_4
   # README 中创建的本地 symlink；均相对本 YAML 解析。
   pretrained_path: ./model
   tokenizer_path: ./tokenizer
