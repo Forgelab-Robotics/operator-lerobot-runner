@@ -7,24 +7,47 @@ joints:
   - { name: joint6, mode: position, unit: radians }
   - { name: gripper, mode: prismatic, unit: millimeters }
 
+# observation.state 的维度与顺序；默认与动作 joints 相同，这里显式写出。
+state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
 policy:
   type: pi05
   policy_id: piper_sim_pi05_async
   auto_start: true
   # PIPER_SIM_251225 旧部署使用的训练任务文本；不要改写为同义句。
   instruction: Grab the blue cube and then place upon red cube
-  compile_model: false
-  gradient_checkpointing: false
-
   # 非阻塞 LeRobot Real-Time Chunking backend。
   inference_mode: async_rtc
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # async_rtc 当前不支持未经 warmup 的 torch.compile。
+  compile_model: false
+  compile_mode: max-autotune
+  gradient_checkpointing: false
+  use_amp: false
+
+  # 模型仍预测完整 50 步 chunk；RTC 的实际执行/重叠由下方 rtc 参数控制。
+  n_action_steps: 50
+  # Flow-matching Euler 去噪步数；checkpoint 默认值为 10。
+  num_inference_steps: 10
+
+  # 控制循环频率，用于把推理延迟（秒）换算成 action 步数。
   control_hz: 50
   rtc:
+    # async_rtc 会强制启用 RTC；这里显式写出该值。
+    enabled: true
+    # 新旧 chunk 参与 RTC prefix guidance 的执行/重叠长度。
     execution_horizon: 10
+    # 剩余 action 数不大于该值时，后台开始生成下一 chunk。
     queue_threshold: 30
     max_guidance_weight: 10.0
-    # 与 pick_and_place 旧 RTC 配置保持一致。
-    prefix_attention_schedule: EXP
+    # 使用 LeRobot RTCConfig 的官方默认调度。
+    prefix_attention_schedule: LINEAR
+    # RTC 调试轨迹；开启后最多保留 debug_maxlen 条记录。
+    debug: false
+    debug_maxlen: 100
 
   pretrained_path: ./model
   tokenizer_path: ./tokenizer

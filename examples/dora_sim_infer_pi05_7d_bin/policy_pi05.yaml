@@ -7,15 +7,33 @@ joints:
   - { name: joint6, mode: position, unit: radians }
   - { name: gripper, mode: prismatic, unit: millimeters }
 
+# observation.state 的维度与顺序；默认与动作 joints 相同，这里显式写出。
+state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
 policy:
   type: pi05
   policy_id: piper_sim_pi05
   auto_start: true
   # PIPER_SIM_251225 旧部署使用的训练任务文本；不要改写为同义句。
   instruction: Grab the blue cube and then place upon red cube
-  # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
+  # 同步模式使用 LeRobot select_action() 和内部 action queue。
+  inference_mode: sync
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # 模型执行配置。compile_model=false 时 compile_mode 不生效，但仍显式保留。
   compile_model: false
+  compile_mode: max-autotune
   gradient_checkpointing: false
+  use_amp: false
+
+  # 每次预测 50 步，只执行前 n_action_steps 步后重新获取 observation。
+  # 50 Hz 下：5≈0.1s、10≈0.2s、50≈1s；当前 50 保持 checkpoint 默认行为。
+  n_action_steps: 50
+  # Flow-matching Euler 去噪步数；checkpoint 默认值为 10。
+  num_inference_steps: 10
+
   # README 中创建的本地 symlink；均相对本 YAML 解析。
   pretrained_path: ./model
   tokenizer_path: ./tokenizer

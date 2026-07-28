@@ -13,8 +13,8 @@ joints:
   - { name: joint6, mode: position, unit: radians }
   - { name: gripper, mode: position, unit: millimeters }
 
-# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
-# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+# observation.state 的维度与顺序；默认与动作 joints 相同，这里显式写出。
+state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
 
 policy:
   type: pi05
@@ -26,11 +26,22 @@ policy:
   # 必须与训练数据中的 task 文本对齐。
   instruction: pick up the object and place it in the target
 
+  # 同步模式使用 LeRobot select_action() 和内部 action queue。
   inference_mode: sync
-  # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # 模型执行配置。compile_model=false 时 compile_mode 不生效，但仍显式保留。
   compile_model: false
+  compile_mode: max-autotune
   gradient_checkpointing: false
-  # n_action_steps 和 num_inference_steps 默认沿用 checkpoint config。
+  use_amp: false
+
+  # 每次预测完整 chunk，只执行前 n_action_steps 步后重新获取 observation。
+  n_action_steps: 50
+  # Flow-matching Euler 去噪步数。
+  num_inference_steps: 10
 
 # alias 必须与 checkpoint 的 observation.images.<alias> feature 完全一致。
 image_inputs:
