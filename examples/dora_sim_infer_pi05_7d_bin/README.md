@@ -37,7 +37,7 @@ ln -s /path/to/local_paligemma_tokenizer tokenizer
 
 - state/action：7D
 - image features：`observation.images.top`、`observation.images.angle`、`observation.images.left_pillar`
-- 可由 LeRobot 0.6 加载的 processor schema
+- LeRobot 0.6 processor schema
 
 `model`、`tokenizer` 和 `out/` 均被 Git 忽略，不会提交机器相关路径或运行日志。
 
@@ -51,23 +51,7 @@ instruction: Grab the blue cube and then place upon red cube
 
 语言条件是模型输入的一部分，不应改写为看似等价的同义句。checkpoint 本身没有保存 task 文本，因此本示例以 `forge_runtime/examples/inference/policy.pi05.example.yaml` 中的已知部署值为准。若替换为其他 checkpoint，必须同步替换为对应训练数据中的 task 文本。
 
-## 4. LeRobot 0.4.4 checkpoint 兼容
-
-`PIPER_SIM_251225` 使用旧 LeRobot PI0.5 实现训练和部署，两个 policy 配置都显式启用了：
-
-```yaml
-compatibility_mode: lerobot_0_4_4
-```
-
-该模式在 LeRobot 0.6 runtime 中恢复会影响模型输入分布的三项旧语义：
-
-- state prompt 固定补齐到 32 维后再离散化（本模型是 7 个 state + 25 个 padding）；
-- language embedding 乘以 `sqrt(hidden_dim)`；
-- 图像 tensor 转换及 resize/letterbox 使用 0.4.4 的数值语义。
-
-这些行为只作用于当前 policy 实例，不修改 checkpoint 文件，也不替换 LeRobot 0.6 的 processor pipeline、action queue 或 RTC。使用由 LeRobot 0.6+ 训练的 checkpoint 时应删除此配置，采用默认的 `native` 模式。
-
-## 5. 冒烟测试
+## 4. 冒烟测试
 
 先确认模型、tokenizer、processor 和严格权重加载均正常：
 
@@ -82,7 +66,7 @@ compatibility_mode: lerobot_0_4_4
 
 这个 checkpoint 的权重约 7 GB，实际加载与 forward 需要显著更多显存。本机 8 GB RTX 5060 已验证在模型初始化阶段 CUDA OOM；请在显存足够的环境运行真实推理。
 
-## 6. 运行仿真
+## 5. 运行仿真
 
 ```bash
 cd examples/dora_sim_infer_pi05_7d_bin

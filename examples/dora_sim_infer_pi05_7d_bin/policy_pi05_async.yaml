@@ -15,9 +15,8 @@ policy:
   instruction: Grab the blue cube and then place upon red cube
   compile_model: false
   gradient_checkpointing: false
-  # 此 checkpoint 由 LeRobot 0.4.x 训练，恢复其 state/image/language 推理语义。
-  compatibility_mode: lerobot_0_4_4
 
+  # 非阻塞 LeRobot Real-Time Chunking backend。
   inference_mode: async_rtc
   control_hz: 50
   rtc:

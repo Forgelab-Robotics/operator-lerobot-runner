@@ -30,8 +30,6 @@ policy:
   # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
   compile_model: false
   gradient_checkpointing: false
-  # 仅旧 LeRobot 0.4.4 checkpoint 启用；0.6+ 训练的模型保持 native。
-  # compatibility_mode: lerobot_0_4_4
   # n_action_steps 和 num_inference_steps 默认沿用 checkpoint config。
 
 # alias 必须与 checkpoint 的 observation.images.<alias> feature 完全一致。

@@ -28,8 +28,6 @@ policy:
   # async_rtc 不支持 compile_model=true；训练期 gradient checkpointing 也应关闭。
   compile_model: false
   gradient_checkpointing: false
-  # 仅旧 LeRobot 0.4.4 checkpoint 启用；0.6+ 训练的模型保持 native。
-  # compatibility_mode: lerobot_0_4_4
   control_hz: 50
   rtc:
     execution_horizon: 10

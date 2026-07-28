@@ -11,11 +11,9 @@ from typing import cast
 import numpy as np
 import pytest
 import torch
-from lerobot.policies.pi05.processor_pi05 import Pi05PrepareStateTokenizerProcessorStep
 from lerobot.policies.rtc import RTCConfig
 from lerobot.processor import RelativeActionsProcessorStep
-from lerobot.types import TransitionKey
-from lerobot.utils.constants import OBS_STATE
+
 from lerobot_inference.inference.policies import registry
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
@@ -27,13 +25,6 @@ from lerobot_inference.inference.policies.pi05 import sync as pi05_sync
 from lerobot_inference.inference.policies.pi05.assets import (
     ensure_pi05_offline_assets,
     load_local_tokenizer,
-)
-from lerobot_inference.inference.policies.pi05.compatibility import (
-    Legacy044PrepareStateTokenizerProcessorStep,
-    _install_legacy_044_language_embedding_scale,
-    _resize_with_pad_legacy_044,
-    apply_pi05_compatibility,
-    normalize_pi05_compatibility_mode,
 )
 from lerobot_inference.inference.policies.registry import (
     _create_pi05,
@@ -217,23 +208,6 @@ def test_pi05_preserves_float_images_for_native_preprocessing() -> None:
     image = policy.select_batches[0]["observation.images.front"]
     assert image.dtype == torch.float32
     assert float(image.mean()) == pytest.approx(0.5)
-
-
-def test_pi05_legacy_044_reproduces_float_image_division() -> None:
-    policy = FakePI05Policy(n_action_steps=1)
-    policy._lerobot_inference_compatibility_mode = "lerobot_0_4_4"
-    adapter, policy, _, _ = make_adapter(policy=policy)
-    observation = make_observation(image_dtype=np.float32)
-    observation["observation.images.front"] = np.full(
-        (4, 5, 3),
-        0.5,
-        dtype=np.float32,
-    )
-
-    adapter.generate_action(observation)
-
-    image = policy.select_batches[0]["observation.images.front"]
-    assert float(image.mean()) == pytest.approx(0.5 / 255)
 
 
 def test_pi05_rejects_invalid_image_layout() -> None:
@@ -542,86 +516,6 @@ def test_pi05_relative_actions_validate_processor_joint_names() -> None:
         )
 
 
-def test_pi05_legacy_044_state_prompt_keeps_fixed_width() -> None:
-    step = Legacy044PrepareStateTokenizerProcessorStep(max_state_dim=4)
-    transition = {
-        TransitionKey.OBSERVATION: {
-            OBS_STATE: torch.tensor([[-1.0, 1.0]], dtype=torch.float32),
-        },
-        TransitionKey.COMPLEMENTARY_DATA: {"task": ["pick cube"]},
-    }
-
-    processed = step(transition)
-
-    prompt = processed[TransitionKey.COMPLEMENTARY_DATA]["task"][0]
-    state_text = prompt.split("State: ", maxsplit=1)[1].split(";", maxsplit=1)[0]
-    state_tokens = state_text.split()
-    assert len(state_tokens) == 4
-    assert state_tokens[-2:] == ["128", "128"]
-    assert transition[TransitionKey.OBSERVATION][OBS_STATE].shape == (1, 2)
-
-
-def test_pi05_legacy_044_letterbox_restores_training_padding() -> None:
-    image = torch.full((1, 2, 4, 3), 0.5, dtype=torch.float32)
-
-    padded = _resize_with_pad_legacy_044(image, 4, 4)
-
-    assert padded.shape == (1, 4, 4, 3)
-    torch.testing.assert_close(padded[:, 0], torch.full((1, 4, 3), -1.0))
-    torch.testing.assert_close(padded[:, 1:3], torch.full((1, 2, 4, 3), 0.5))
-    torch.testing.assert_close(padded[:, 3], torch.full((1, 4, 3), -1.0))
-
-
-def test_pi05_legacy_044_restores_language_embedding_scale() -> None:
-    embedding_host = SimpleNamespace(
-        embed_language_tokens=lambda tokens: torch.ones((*tokens.shape, 4))
-    )
-    policy = SimpleNamespace(
-        model=SimpleNamespace(paligemma_with_expert=embedding_host)
-    )
-
-    _install_legacy_044_language_embedding_scale(policy)
-
-    embeddings = embedding_host.embed_language_tokens(torch.tensor([[1, 2]]))
-    torch.testing.assert_close(embeddings, torch.full((1, 2, 4), 2.0))
-
-
-def test_pi05_legacy_044_compatibility_is_instance_scoped_and_idempotent() -> None:
-    embedding_host = SimpleNamespace(
-        embed_language_tokens=lambda tokens: torch.ones((*tokens.shape, 4))
-    )
-    policy = SimpleNamespace(
-        model=SimpleNamespace(paligemma_with_expert=embedding_host),
-        _preprocess_images=lambda batch: batch,
-    )
-    original_step = Pi05PrepareStateTokenizerProcessorStep(max_state_dim=4)
-    preprocessor = SimpleNamespace(steps=(original_step,))
-
-    assert (
-        apply_pi05_compatibility(policy, preprocessor, "lerobot_0_4_4")
-        == "lerobot_0_4_4"
-    )
-    assert isinstance(
-        preprocessor.steps[0],
-        Legacy044PrepareStateTokenizerProcessorStep,
-    )
-    assert preprocessor.steps[0] is not original_step
-    assert policy._lerobot_inference_compatibility_mode == "lerobot_0_4_4"
-    first = embedding_host.embed_language_tokens(torch.tensor([[1, 2]]))
-    torch.testing.assert_close(first, torch.full((1, 2, 4), 2.0))
-
-    apply_pi05_compatibility(policy, preprocessor, "lerobot_0_4_4")
-    second = embedding_host.embed_language_tokens(torch.tensor([[1, 2]]))
-    torch.testing.assert_close(second, first)
-
-
-def test_pi05_compatibility_mode_is_explicit() -> None:
-    assert normalize_pi05_compatibility_mode(None) == "native"
-    assert normalize_pi05_compatibility_mode("lerobot_0_4_4") == "lerobot_0_4_4"
-    with pytest.raises(ValueError, match="compatibility_mode"):
-        normalize_pi05_compatibility_mode("lerobot_0_5_0")
-
-
 def test_pi05_from_pretrained_injects_local_tokenizer_and_strict_loader(
     monkeypatch,
 ) -> None:
@@ -651,19 +545,11 @@ def test_pi05_from_pretrained_injects_local_tokenizer_and_strict_loader(
         return policy, processors[0], processors[1], config
 
     monkeypatch.setattr(pi05_sync, "load_policy_bundle", fake_load_policy_bundle)
-    monkeypatch.setattr(
-        pi05_sync,
-        "apply_pi05_compatibility",
-        lambda loaded_policy, preprocessor, mode: captured.update(
-            compatibility=(loaded_policy, preprocessor, mode)
-        ),
-    )
 
     adapter = PI05PolicyAdapter.from_pretrained(
         "/policy",
         tokenizer_path="/tokenizer",
         expected_image_keys={"observation.images.front"},
-        compatibility_mode="lerobot_0_4_4",
     )
 
     assert isinstance(adapter, PI05PolicyAdapter)
@@ -674,11 +560,6 @@ def test_pi05_from_pretrained_injects_local_tokenizer_and_strict_loader(
         }
     }
     assert captured["policy_loader"] is load_pi05_policy_strict
-    assert captured["compatibility"] == (
-        policy,
-        processors[0],
-        "lerobot_0_4_4",
-    )
 
 
 def test_pi05_from_pretrained_rejects_camera_mismatch(monkeypatch) -> None:
@@ -779,19 +660,7 @@ def test_pi05_registry_selects_async_rtc_adapter(monkeypatch) -> None:
     )
     assert captured["control_hz"] == 50.0
     assert captured["queue_threshold"] == 20
-    assert captured["compatibility_mode"] == "native"
     assert cast(dict, captured["policy_config_overrides"])["rtc_config.enabled"] is True
-
-
-def test_pi05_registry_rejects_unknown_compatibility_before_loading() -> None:
-    with pytest.raises(ValueError, match="compatibility_mode"):
-        _create_pi05(
-            {
-                "tokenizer_path": "/unused",
-                "compatibility_mode": "lerobot_0_5_0",
-            },
-            "/unused",
-        )
 
 
 def test_removed_pi05_async_threshold_is_rejected() -> None:

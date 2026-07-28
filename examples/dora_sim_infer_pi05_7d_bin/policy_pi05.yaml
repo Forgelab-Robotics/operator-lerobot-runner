@@ -16,8 +16,6 @@ policy:
   # 关闭 checkpoint 中保存的训练期编译与 gradient-checkpointing 设置。
   compile_model: false
   gradient_checkpointing: false
-  # 此 checkpoint 由 LeRobot 0.4.x 训练，恢复其 state/image/language 推理语义。
-  compatibility_mode: lerobot_0_4_4
   # README 中创建的本地 symlink；均相对本 YAML 解析。
   pretrained_path: ./model
   tokenizer_path: ./tokenizer
