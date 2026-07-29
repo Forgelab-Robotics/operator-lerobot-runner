@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import math
 import time
-from contextlib import nullcontext
 from dataclasses import dataclass
 from threading import Event, Lock, Thread
 from typing import Any
@@ -390,14 +389,9 @@ class PI05AsyncRTCPolicyAdapter(PI05PolicyAdapter):
             predicted_delay = math.ceil(prior_latency * self._control_hz)
 
             batch = self._prepare_observation(observation)
-            autocast = (
-                torch.autocast(device_type=self._device.type)
-                if self._device.type == "cuda" and bool(self._policy.config.use_amp)
-                else nullcontext()
-            )
             # RTC prefix guidance temporarily re-enables autograd inside LeRobot's
             # denoiser, which torch.inference_mode() would make impossible.
-            with torch.no_grad(), autocast:
+            with torch.no_grad(), self._inference_autocast_context():
                 preprocessed = self._preprocessor(batch)
 
                 if previous_actions is not None and self._relative_step is not None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 from collections import deque
+from contextlib import nullcontext
 from pathlib import Path
 from threading import Event, Thread
 from types import SimpleNamespace
@@ -208,6 +209,49 @@ def test_pi05_preserves_float_images_for_native_preprocessing() -> None:
     image = policy.select_batches[0]["observation.images.front"]
     assert image.dtype == torch.float32
     assert float(image.mean()) == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize(
+    ("configured_dtype", "expected_dtype"),
+    [("bfloat16", torch.bfloat16), ("float16", torch.float16)],
+)
+def test_pi05_amp_uses_model_dtype(
+    monkeypatch,
+    configured_dtype: str,
+    expected_dtype: torch.dtype,
+) -> None:
+    adapter, policy, _, _ = make_adapter()
+    policy.config.use_amp = True
+    policy.config.dtype = configured_dtype
+    adapter._device = torch.device("cuda")
+    captured: dict[str, object] = {}
+
+    def fake_autocast(*, device_type, dtype):
+        captured["device_type"] = device_type
+        captured["dtype"] = dtype
+        return nullcontext()
+
+    monkeypatch.setattr(pi05_sync.torch, "autocast", fake_autocast)
+
+    with adapter._inference_autocast_context():
+        pass
+
+    assert captured == {"device_type": "cuda", "dtype": expected_dtype}
+
+
+def test_pi05_amp_preserves_float32_model_precision(monkeypatch) -> None:
+    adapter, policy, _, _ = make_adapter()
+    policy.config.use_amp = True
+    policy.config.dtype = "float32"
+    adapter._device = torch.device("cuda")
+
+    def unexpected_autocast(**kwargs):
+        raise AssertionError(f"float32 model must not enable CUDA autocast: {kwargs}")
+
+    monkeypatch.setattr(pi05_sync.torch, "autocast", unexpected_autocast)
+
+    with adapter._inference_autocast_context():
+        pass
 
 
 def test_pi05_rejects_invalid_image_layout() -> None:

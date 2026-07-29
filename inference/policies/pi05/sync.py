@@ -237,6 +237,33 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
             robot_type="",
         )
 
+    def _inference_autocast_context(self):
+        if self._device.type != "cuda" or not bool(self._policy.config.use_amp):
+            return nullcontext()
+
+        configured_dtype = getattr(self._policy.config, "dtype", None)
+        if isinstance(configured_dtype, torch.dtype):
+            model_dtype = configured_dtype
+        else:
+            dtype_name = str(configured_dtype).removeprefix("torch.").lower()
+            dtype_by_name = {
+                "bfloat16": torch.bfloat16,
+                "float16": torch.float16,
+                "float32": torch.float32,
+            }
+            model_dtype = dtype_by_name.get(dtype_name)
+
+        if model_dtype is None:
+            raise ValueError(
+                "PI0.5 use_amp requires model dtype to be bfloat16, float16, or float32; "
+                f"got {configured_dtype!r}"
+            )
+        if model_dtype == torch.float32:
+            # CUDA autocast does not support float32 as its target dtype. Keeping the
+            # context disabled preserves the model's configured precision.
+            return nullcontext()
+        return torch.autocast(device_type=self._device.type, dtype=model_dtype)
+
     def generate_action(
         self,
         observation: dict[str, Any],
@@ -252,12 +279,7 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
         else:
             batch = {}
 
-        autocast = (
-            torch.autocast(device_type=self._device.type)
-            if self._device.type == "cuda" and bool(self._policy.config.use_amp)
-            else nullcontext()
-        )
-        with torch.inference_mode(), autocast:
+        with torch.inference_mode(), self._inference_autocast_context():
             if observation:
                 batch = self._preprocessor(batch)
             action = self._policy.select_action(batch)
