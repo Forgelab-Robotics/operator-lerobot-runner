@@ -436,7 +436,7 @@ smolvla = [
 
 [[package]]
 name = "lerobot-inference"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "dora-rs", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
