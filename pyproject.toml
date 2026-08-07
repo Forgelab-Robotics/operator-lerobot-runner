@@ -1,6 +1,6 @@
 [project]
 name = "lerobot-inference"
-version = "1.0.0"
+version = "1.0.1"
 description = "Standalone inference and policy_train conversion for lerobot_trainer artifacts"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -22,7 +22,7 @@ dependencies = [
     "nvidia-nvjitlink-cu12>=12.8",
     "nvidia-nvtx-cu12>=12.8",
 
-    "lerobot[pi,smolvla]==0.6.0",
+    "lerobot[pi,smolvla]==0.6.1",
     "transformers>=5.4.0,<5.6.0",
 
     "numpy>=2.0.0",
