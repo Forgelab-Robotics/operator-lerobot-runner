@@ -6,6 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from lerobot_inference import __version__
+
 
 _COMMANDS = ("convert", "infer", "infer-once")
 
@@ -77,6 +79,12 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=_ChineseHelpFormatter,
     )
     _localize_parser(parser)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="显示版本信息并退出",
+    )
     subparsers = parser.add_subparsers(
         dest="command",
         title="功能",
@@ -223,13 +231,13 @@ def _normalize_argv(argv: list[str] | None) -> list[str]:
 
     不注入的情况：
     - 已显式写出 convert / infer / infer-once
-    - 仅要顶层帮助（无参数、或 -h / --help）
+    - 仅要顶层元信息（无参数、-h / --help 或 --version）
     """
     args = list(sys.argv[1:] if argv is None else argv)
     if args and args[0] in _COMMANDS:
         return args
-    # 顶层 --help：不要因可执行名 lerobot_infer 被误注入成 infer --help
-    if not args or args[0] in ("-h", "--help"):
+    # 顶层帮助/版本：不要因可执行名 lerobot_infer 被误注入子命令。
+    if not args or args[0] in ("-h", "--help", "--version"):
         return args
     alias = _alias_command()
     if alias is not None:
