@@ -139,3 +139,60 @@ dist/lerobot_infer/lerobot_infer infer --config /path/to/policy_act.yaml
 ```
 
 构建缓存和产物均被 Git 忽略；需要重新打包时可执行 `bash scripts/build.sh --clean`。
+
+### 薄 Policy Resource（实验）
+
+本仓库始终是可独立开发的 Python 项目。单独 clone 后直接执行：
+
+```bash
+uv sync --frozen
+uv run lerobot --version
+
+uv sync --frozen --extra dev
+uv run pytest
+```
+
+共享 Runtime 不是源码开发的前置条件，只用于发布后的 Resource 组合。薄 Policy 与现有 PyInstaller 产物并存，执行以下命令构建：
+
+```bash
+bash scripts/build_thin_policy.sh
+```
+
+输出是独立的 `lerobot_inference_policy@1.0.2` Resource payload：
+
+```text
+dist/lerobot_policy/
+├── bin/lerobot
+├── bin/check-policy
+└── site-packages/
+    ├── lerobot_inference/
+    └── lerobot_inference-1.0.2.dist-info/
+```
+
+构建脚本先构建当前 wheel，再通过 `uv pip install --no-deps --target site-packages` 安装。Policy 的 wheel metadata 和开发锁仍完整声明依赖，但 payload 严格限制为 Runner 自身代码；Torch、LeRobot、NumPy、OpenCV、Forge 和 CUDA 由独立 `forge_lerobot_runtime` Resource 提供。
+
+`bin/lerobot` 不搜索能力包，也不根据父目录猜测其他 Resource。Resource Resolver 必须通过绝对路径 `FORGE_LEROBOT_RUNTIME_ROOT` 显式绑定 Runtime；模型路径由 Policy 配置绑定，TorchVision backbone 使用标准 `TORCH_HOME` 绑定。Python bytecode、Runtime cache 和 Hugging Face cache 写入 `${FORGE_RUN_DIR}/lerobot_policy/cache`，未设置时写入用户 cache。`HF_HUB_OFFLINE` 和 `TRANSFORMERS_OFFLINE` 默认设为 `1`，只允许通过明确的 `FORGE_HF_HUB_OFFLINE=0` / `FORGE_TRANSFORMERS_OFFLINE=0` 放开联网。
+
+组合后执行合同检查：
+
+```bash
+FORGE_LEROBOT_RUNTIME_ROOT=/absolute/path/to/forge_lerobot_runtime \
+  dist/lerobot_policy/bin/check-policy
+
+FORGE_LEROBOT_RUNTIME_ROOT=/absolute/path/to/forge_lerobot_runtime \
+TORCH_HOME=/absolute/path/to/torchvision_resnet18 \
+  dist/lerobot_policy/bin/lerobot --version
+```
+
+这里的 Dora CLI 由独立的 `dora_runtime` Resource 提供，不属于 Policy 或 LeRobot Runtime。发布或组合 Policy Resource 前，应使用 Runtime 自带的兼容性清单检查独立 `uv.lock` 的核心版本：
+
+```bash
+uv run python scripts/check_runtime_compatibility.py \
+  /absolute/path/to/forge_lerobot_runtime/runtime-manifest.json
+```
+
+构建布局、显式 Runtime 绑定和 fake-runtime smoke 可通过以下命令验证：
+
+```bash
+bash scripts/test_thin_policy.sh
+```
