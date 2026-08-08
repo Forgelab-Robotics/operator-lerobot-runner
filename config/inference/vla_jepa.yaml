@@ -1,0 +1,67 @@
+# VLA-JEPA 推理配置模板
+#
+#   uv run lerobot infer-once --config config/inference/vla_jepa.yaml
+#   uv run lerobot infer --config config/inference/vla_jepa.yaml
+# Dora 完整样例可仿照 examples/dora_sim_infer_pi05_7d_bin/，把 policy 节点换成：
+#   args: infer --config config/inference/vla_jepa.yaml
+
+joints:
+  - name: joint1
+    mode: position
+    unit: radians
+  - name: joint2
+    mode: position
+    unit: radians
+  - name: joint3
+    mode: position
+    unit: radians
+  - name: joint4
+    mode: position
+    unit: radians
+  - name: joint5
+    mode: position
+    unit: radians
+  - name: joint6
+    mode: position
+    unit: radians
+  - name: gripper
+    mode: position
+    unit: millimeters
+
+# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
+# 未配置时默认沿用上面的 joints。
+# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
+policy:
+  type: vla_jepa
+  auto_start: false
+  policy_id: vla_jepa_example
+
+  # VLA-JEPA 是指令驱动的 VLA：指令会被渲染进 Qwen3-VL 的 prompt 模板
+  # （"Your task is {instruction}..."），务必与训练时指令风格一致。
+  # 运行时可通过 adapter.instruction 更新（更新会清空动作队列）。
+  instruction: "Place the red cube on top of the green cube"
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # LeRobot 产物（含 model.safetensors）；state/action 维度与配置对齐。
+  pretrained_path: /path/to/vla_jepa/pretrained_model
+
+  # 可选：推理不需要 V-JEPA2 世界模型（训练专用）。设为 false 可跳过
+  # V-JEPA2 编码器加载，省显存和加载时间；权重要求与 checkpoint 一致时
+  # 默认加载器会跳过未匹配的世界模型权重。
+  # enable_world_model: false
+
+  # 可选离线部署：Qwen 骨干 / V-JEPA2 编码器默认从 HF Hub 拉取，可指到本地
+  # 目录避免联网（须与 checkpoint 训练时的模型完全一致）。
+  # qwen_model_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/qwen3_vl_2b_instruct
+  # jepa_encoder_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/vjepa2_vitl_fpc64_256
+
+image_inputs:
+  # 官方 lerobot/VLA-JEPA-LIBERO checkpoint 的输入特征名是
+  # observation.images.image + observation.images.image2（LIBERO 2 相机）。
+  # 别名（: 后面的值）必须等于 checkpoint 特征键去掉 "observation.images."
+  # 前缀后的名字，否则 from_pretrained 的相机校验会报错。
+  image/main: image
+  image/second: image2

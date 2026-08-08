@@ -14,6 +14,7 @@ from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
     PI05PolicyAdapter,
 )
+from lerobot_inference.inference.policies.vla_jepa import VLAJEPAAdapter
 
 PolicyFactory = Callable[[dict[str, Any], str], LerobotPolicyAdapter]
 
@@ -32,6 +33,8 @@ _POLICY_ALIASES: dict[str, str] = {
     "diffusion": "diffusion",
     "vqbet": "vqbet",
     "tdmpc": "tdmpc",
+    "vla_jepa": "vla_jepa",
+    "vla-jepa": "vla_jepa",
 }
 
 # Implemented adapters keyed by normalized LeRobot policy type.
@@ -257,6 +260,40 @@ def _create_pi05(policy_config: dict[str, Any], pretrained_path: str) -> Lerobot
 
 
 register_policy_type("pi05", _create_pi05)
+
+
+def _vla_jepa_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # VLA-JEPA 推理只走 Qwen 骨干 + DiT 动作头。enable_world_model=true 会在
+    # 模型初始化时额外加载 V-JEPA2 编码器（纯训练用，推理不需要）；允许运行时
+    # 关闭以省显存和加载时间，其余键原样透传给 checkpoint 配置。
+    runtime_keys = (
+        "qwen_model_name",
+        "jepa_encoder_name",
+        "enable_world_model",
+        "n_action_steps",
+        "num_inference_timesteps",
+    )
+    return {key: policy_config[key] for key in runtime_keys if key in policy_config}
+
+
+def _create_vla_jepa(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    adapter = VLAJEPAAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        instruction=str(policy_config.get("instruction", "")),
+        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
+        policy_config_overrides=_vla_jepa_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("vla_jepa", _create_vla_jepa)
 
 
 def resolve_policy_pretrained_path(policy_config: dict[str, Any]) -> str:
