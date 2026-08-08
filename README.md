@@ -11,7 +11,9 @@ LeRobot checkpoint ────────────────────�
 
 ## 快速开始
 
-要求：Linux x86_64、Python 3.12、[uv](https://docs.astral.sh/uv/)；GPU 推理还需要与 CUDA 12 兼容的驱动。安装时需能访问内部 Forge GitLab 仓库。
+要求：Linux x86_64、Python 3.12、[uv](https://docs.astral.sh/uv/)；GPU 推理需要兼容 lock 中稳定版 CUDA 13 Torch wheel 的 NVIDIA 驱动。Torch、TorchVision 和 CUDA 用户态依赖由 `uv.lock` 唯一固定，不再使用 nightly/cu128 专用索引或手写 NVIDIA wheel 列表。安装时需能访问内部 Forge GitLab 仓库。
+
+当前 lock 固定 `torch 2.11.0+cu130`、`torchvision 0.26.0+cu130`、`triton 3.6.0` 和 `numpy 2.2.6`，与 `lerobot_trainer` 的核心版本对齐。RTX 5060（compute capability 12.0）已通过 CUDA matrix multiplication、源码 ACT `infer-once` 和 PyInstaller ACT `infer-once`；Torch wheel 包含 `sm_75/sm_80/sm_86/sm_90/sm_100/sm_120`，但 RTX 30/40 系列仍需分别完成真实模型验收后才能标记为 tested。
 
 ```bash
 git clone <repository-url>

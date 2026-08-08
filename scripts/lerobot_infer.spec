@@ -20,7 +20,6 @@ hiddenimports: list = []
 for pkg in (
     "torch",
     "torchvision",
-    "torchaudio",
     "triton",
     "transformers",
     "lerobot",

@@ -62,7 +62,7 @@ echo "==> Checking torch / triton ..."
 import importlib.util
 import sys
 
-missing = [name for name in ("torch", "torchvision", "torchaudio", "triton") if importlib.util.find_spec(name) is None]
+missing = [name for name in ("torch", "torchvision", "triton") if importlib.util.find_spec(name) is None]
 if missing:
     raise SystemExit("missing packages: " + ", ".join(missing) + "\n请先 bash scripts/setup.sh")
 
@@ -89,9 +89,9 @@ VENV_LIB="$("${PYTHON}" -c "import os, sys; print(os.path.join(sys.prefix, 'lib'
 export LD_LIBRARY_PATH="${VENV_LIB}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 echo "==> build LD_LIBRARY_PATH: ${VENV_LIB}:..."
 
-_npp_so="$(find "${VENV_LIB}" -name "libnppicc.so.12" 2>/dev/null | head -1)"
+_npp_so="$(find "${VENV_LIB}" -name "libnppicc.so.*" 2>/dev/null | head -1)"
 if [[ -z "${_npp_so}" ]]; then
-  _npp_so="$(find "${ROOT}/.venv" -name "libnppicc.so.12" 2>/dev/null | head -1)"
+  _npp_so="$(find "${ROOT}/.venv" -name "libnppicc.so.*" 2>/dev/null | head -1)"
 fi
 if [[ -n "${_npp_so}" ]]; then
   export LD_PRELOAD="${_npp_so}${LD_PRELOAD:+:${LD_PRELOAD}}"

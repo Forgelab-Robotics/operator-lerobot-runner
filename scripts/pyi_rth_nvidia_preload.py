@@ -1,4 +1,4 @@
-# PyInstaller runtime hook: preload nvidia .so for frozen binaries (cu12 wheels).
+# PyInstaller runtime hook: preload NVIDIA wheel libraries without a CUDA-major assumption.
 from __future__ import annotations
 
 import ctypes
@@ -22,7 +22,7 @@ def _preload_nvidia_libs() -> None:
                     ctypes.CDLL(os.path.join(lib_dir, so))
                 except OSError:
                     pass
-    for npp in glob.glob(os.path.join(base, "**", "libnppicc.so.12"), recursive=True):
+    for npp in glob.glob(os.path.join(base, "**", "libnppicc.so.*"), recursive=True):
         existing = os.environ.get("LD_PRELOAD", "")
         os.environ["LD_PRELOAD"] = f"{npp}:{existing}" if existing else npp
         break
