@@ -1,0 +1,62 @@
+# VLA-JEPA（LIBERO 8D）— lerobot_inference 策略节点配置
+#
+# smoke（仓库根目录）：
+#   uv run lerobot infer-once --config examples/dora_sim_infer_vla_jepa_8d_bin/policy_vla_jepa.yaml
+# Dora：
+#   cd examples/dora_sim_infer_vla_jepa_8d_bin && dora run dataflow.yaml
+
+# 动作关节（7 维）：7 个旋转关节，gripper 由 joint7 驱动，不做独立毫米维度。
+joints:
+  - name: joint1
+    mode: position
+    unit: radians
+  - name: joint2
+    mode: position
+    unit: radians
+  - name: joint3
+    mode: position
+    unit: radians
+  - name: joint4
+    mode: position
+    unit: radians
+  - name: joint5
+    mode: position
+    unit: radians
+  - name: joint6
+    mode: position
+    unit: radians
+  - name: joint7
+    mode: position
+    unit: radians
+
+# observation.state 为 8 维（7 关节角 + gripper 开合），与动作维度不同，
+# 必须显式列出。官方 lerobot/VLA-JEPA-LIBERO 产物即为此配置。
+state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, joint7, gripper]
+
+policy:
+  type: vla_jepa
+  policy_id: vla_jepa_libero
+  auto_start: false  # 完整链路验证通过后再启用（见 README 分阶段验证）
+  # LIBERO spatial 训练任务原句；VLA-JEPA 将其渲染进 Qwen3-VL prompt，
+  # 不要改写为同义句。运行时可通过 adapter.instruction 更新（更新会清空动作队列）。
+  instruction: "Place the red cube on top of the green cube"
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # 推理不需要 V-JEPA2 世界模型（训练专用）：跳过加载可省显存。
+  enable_world_model: false
+
+  # README 中创建的本地 symlink；均相对本 YAML 解析。
+  pretrained_path: ./model
+
+  # 离线部署时把 Qwen 骨干 / V-JEPA2 编码器指到本地目录（须与 checkpoint
+  # 训练时的模型完全一致），避免运行时访问 HF Hub。
+  # qwen_model_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/qwen3_vl_2b_instruct
+  # jepa_encoder_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/vjepa2_vitl_fpc64_256
+
+image_inputs:
+  # 官方 checkpoint 的输入特征是 observation.images.image + image2（LIBERO 双相机）。
+  # 别名必须等于特征键去掉 "observation.images." 前缀后的名字。
+  image/main: image
+  image/second: image2
