@@ -1,0 +1,55 @@
+# Diffusion Policy 推理配置模板
+#
+#   uv run lerobot infer-once --config config/inference/diffusion.yaml
+#   uv run lerobot infer --config config/inference/diffusion.yaml
+# Dora 完整样例可仿照 examples/dora_sim_infer_act_7d_bin/，把 policy 节点换成：
+#   args: infer --config config/inference/diffusion.yaml
+
+joints:
+  - name: joint1
+    mode: position
+    unit: radians
+  - name: joint2
+    mode: position
+    unit: radians
+  - name: joint3
+    mode: position
+    unit: radians
+  - name: joint4
+    mode: position
+    unit: radians
+  - name: joint5
+    mode: position
+    unit: radians
+  - name: joint6
+    mode: position
+    unit: radians
+  - name: gripper
+    mode: position
+    unit: millimeters
+
+# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
+# 未配置时默认沿用上面的 joints。
+# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+
+policy:
+  type: diffusion
+  auto_start: false
+  policy_id: diffusion_example
+
+  # LeRobot 产物（含 model.safetensors）；state/action 维度分别与配置对齐。
+  pretrained_path: /path/to/diffusion/pretrained_model
+  # 启用前应在控制开始前完成首次 forward warmup。
+  torch_compile: false
+  # 可选：推理去噪步数；不配则用 checkpoint 的 num_inference_steps。
+  # num_inference_steps: 10
+  # 可选：覆盖 checkpoint 的 action chunk 长度（须满足 n_action_steps <=
+  # horizon - n_obs_steps + 1）。
+  # n_action_steps: 32
+  # 可选：显式声明 checkpoint 的图像特征键。默认从 image_inputs 派生
+  # "observation.images.<alias>"；历史 checkpoint（如 pusht）用非标准命名
+  # "observation.image" 时须在这里给出完整键。
+  # expected_image_keys: [observation.image]
+
+image_inputs:
+  image/main: image
