@@ -38,7 +38,7 @@ FORGE_LEROBOT_RUNTIME_ROOT="${RUNTIME_ROOT}" "${POLICY_ROOT}/bin/check-policy"
 TORCH_ASSET_ROOT="${FAKE_ROOT}/resources/torchvision_resnet18"
 mkdir -p "${TORCH_ASSET_ROOT}/hub/checkpoints"
 VERSION_OUTPUT="$(FORGE_LEROBOT_RUNTIME_ROOT="${RUNTIME_ROOT}" FORGE_RUN_DIR="${FAKE_ROOT}/run" TORCH_HOME="${TORCH_ASSET_ROOT}" "${POLICY_ROOT}/bin/lerobot" --version)"
-if [[ "${VERSION_OUTPUT}" != "lerobot 1.0.2" ]]; then
+if [[ "${VERSION_OUTPUT}" != "lerobot 1.0.3" ]]; then
   echo "ERROR: launcher version smoke failed: ${VERSION_OUTPUT}" >&2
   exit 1
 fi
@@ -48,7 +48,7 @@ if [[ ! -d "${FAKE_ROOT}/run/lerobot_policy/cache" ]]; then
 fi
 
 TOP_LEVEL="$(find "${POLICY_ROOT}/site-packages" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
-EXPECTED=$'lerobot_inference\nlerobot_inference-1.0.2.dist-info'
+EXPECTED=$'lerobot_inference\nlerobot_inference-1.0.3.dist-info'
 if [[ "${TOP_LEVEL}" != "${EXPECTED}" ]]; then
   echo "ERROR: unexpected Policy site-packages entries:" >&2
   printf '%s\n' "${TOP_LEVEL}" >&2

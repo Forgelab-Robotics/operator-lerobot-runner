@@ -158,7 +158,7 @@ uv run pytest
 bash scripts/build_thin_policy.sh
 ```
 
-输出是独立的 `lerobot_inference_policy@1.0.2` Resource payload：
+输出是独立的 `lerobot_inference_policy@1.0.3` Resource payload：
 
 ```text
 dist/lerobot_policy/
@@ -166,7 +166,7 @@ dist/lerobot_policy/
 ├── bin/check-policy
 └── site-packages/
     ├── lerobot_inference/
-    └── lerobot_inference-1.0.2.dist-info/
+    └── lerobot_inference-1.0.3.dist-info/
 ```
 
 构建脚本先构建当前 wheel，再通过 `uv pip install --no-deps --target site-packages` 安装。Policy 的 wheel metadata 和开发锁仍完整声明依赖，但 payload 严格限制为 Runner 自身代码；Torch、LeRobot、NumPy、OpenCV、Forge 和 CUDA 由独立 `forge_lerobot_runtime` Resource 提供。

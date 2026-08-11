@@ -22,11 +22,11 @@ fi
 rm -rf "${DIST_ROOT}" "${BUILD_ROOT}"
 mkdir -p "${SITE_PACKAGES}" "${DIST_ROOT}/bin" "${WHEEL_DIR}"
 
-echo "==> Building lerobot-inference 1.0.2 wheel"
+echo "==> Building lerobot-inference 1.0.3 wheel"
 uv build --wheel --out-dir "${WHEEL_DIR}" "${ROOT}"
-WHEELS=("${WHEEL_DIR}"/lerobot_inference-1.0.2-*.whl)
+WHEELS=("${WHEEL_DIR}"/lerobot_inference-1.0.3-*.whl)
 if [[ ! -f "${WHEELS[0]}" || "${#WHEELS[@]}" -ne 1 ]]; then
-  echo "ERROR: 期望得到唯一的 lerobot-inference 1.0.2 wheel" >&2
+  echo "ERROR: 期望得到唯一的 lerobot-inference 1.0.3 wheel" >&2
   exit 1
 fi
 
@@ -42,14 +42,14 @@ ENTRIES=("${SITE_PACKAGES}"/*)
 for entry in "${ENTRIES[@]}"; do
   name="$(basename "${entry}")"
   case "${name}" in
-    lerobot_inference|lerobot_inference-1.0.2.dist-info) ;;
+    lerobot_inference|lerobot_inference-1.0.3.dist-info) ;;
     *)
       echo "ERROR: Policy site-packages 出现非 Runner 顶层内容: ${name}" >&2
       exit 1
       ;;
   esac
 done
-if [[ ! -d "${SITE_PACKAGES}/lerobot_inference" || ! -d "${SITE_PACKAGES}/lerobot_inference-1.0.2.dist-info" ]]; then
+if [[ ! -d "${SITE_PACKAGES}/lerobot_inference" || ! -d "${SITE_PACKAGES}/lerobot_inference-1.0.3.dist-info" ]]; then
   echo "ERROR: wheel 安装内容不完整" >&2
   exit 1
 fi
@@ -82,5 +82,5 @@ EOF
 chmod 0755 "${DIST_ROOT}/bin/check-policy"
 
 echo "==> Thin Policy ready: ${DIST_ROOT}"
-echo "    Resource: lerobot_inference_policy@1.0.2"
+echo "    Resource: lerobot_inference_policy@1.0.3"
 echo "    Runtime 由 FORGE_LEROBOT_RUNTIME_ROOT 显式绑定"

@@ -1,6 +1,6 @@
 [project]
 name = "lerobot-inference"
-version = "1.0.2"
+version = "1.0.3"
 description = "Standalone inference and policy_train conversion for lerobot_trainer artifacts"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"

@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-EXPECTED_VERSION = "1.0.2"
+EXPECTED_VERSION = "1.0.3"
 FORBIDDEN = ("torch", "lerobot", "numpy", "cv2", "forge")
 
 
