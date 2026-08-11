@@ -8,8 +8,9 @@ import torch
 
 from lerobot_inference.inference.config import JointConfig, PolicyNodeConfig
 from lerobot_inference.inference.main import _build_joint_command
-from lerobot_inference.inference.policies.act import ACTPolicyAdapter
 from lerobot_inference.inference.policies import loader
+from lerobot_inference.inference.policies.act import ACTPolicyAdapter
+from lerobot_inference.inference.policies.act.adapter import _select_act_image_features
 from lerobot_inference.inference.policies.registry import (
     _act_policy_config_overrides,
     _act_runtime_dimensions,
@@ -102,7 +103,9 @@ def test_standard_act_preprocesses_once_per_action_chunk() -> None:
     )
 
     assert adapter.is_observation_needed() is True
-    np.testing.assert_array_equal(adapter.generate_action(make_observation()), [1.0, 2.0])
+    observation = make_observation()
+    observation["observation.images.unused"] = np.zeros((4, 5, 3), dtype=np.uint8)
+    np.testing.assert_array_equal(adapter.generate_action(observation), [1.0, 2.0])
     assert adapter.is_observation_needed() is False
     np.testing.assert_array_equal(adapter.generate_action({}), [1.0, 2.0])
     assert adapter.is_observation_needed() is False
@@ -116,6 +119,62 @@ def test_standard_act_preprocesses_once_per_action_chunk() -> None:
     assert policy.select_batches[0]["observation.state"].shape == (1, 3)
     assert policy.select_batches[0]["observation.state"].dtype == torch.float32
     assert policy.select_batches[0]["observation.images.front"].shape == (1, 3, 4, 5)
+    assert "observation.images.unused" not in policy.select_batches[0]
+
+
+def test_act_selects_runtime_camera_subset_and_ignores_unrelated_keys() -> None:
+    config = SimpleNamespace(
+        input_features={
+            "observation.state": object(),
+            "observation.images.top": object(),
+            "observation.images.angle": object(),
+            "observation.images.left_pillar": object(),
+        },
+        image_features={
+            "observation.images.top": object(),
+            "observation.images.angle": object(),
+            "observation.images.left_pillar": object(),
+        },
+        env_state_feature=None,
+    )
+
+    active = _select_act_image_features(
+        config,
+        {
+            "observation.images.top",
+            "observation.images.angle",
+            "observation.images.unused",
+        },
+    )
+
+    assert active == {
+        "observation.images.top",
+        "observation.images.angle",
+    }
+    assert list(config.input_features) == [
+        "observation.state",
+        "observation.images.top",
+        "observation.images.angle",
+    ]
+
+
+def test_act_rejects_runtime_cameras_with_no_checkpoint_match() -> None:
+    config = SimpleNamespace(
+        input_features={
+            "observation.state": object(),
+            "observation.images.top": object(),
+        },
+        image_features={"observation.images.top": object()},
+        # The Dora runner cannot provide environment state, so an env feature
+        # must not make a zero-camera configuration pass startup validation.
+        env_state_feature=object(),
+    )
+
+    with pytest.raises(ValueError, match="no keys in common"):
+        _select_act_image_features(
+            config,
+            {"observation.images.unused"},
+        )
 
 
 def test_standard_act_rejects_observation_while_chunk_is_queued() -> None:
@@ -251,6 +310,7 @@ def test_policy_loader_applies_config_overrides_before_construction(
         tmp_path,
         device="cpu",
         policy_config_overrides={"temporal_ensemble_coeff": 0.01, "n_action_steps": 1},
+        config_transform=lambda value: captured.update(config_transform=value),
     )
 
     assert captured["cli_overrides"] == [
@@ -259,10 +319,28 @@ def test_policy_loader_applies_config_overrides_before_construction(
     ]
     assert captured["policy_config"] is config
     assert captured["policy_device"] == "cpu"
+    assert captured["config_transform"] is config
     assert captured["eval"] is True
     assert preprocessor is processors[0]
     assert postprocessor is processors[1]
     assert loaded_config is config
+
+
+def test_runtime_image_inputs_are_filtered_by_loaded_policy_keys() -> None:
+    config = PolicyNodeConfig.from_dict(
+        {
+            "joints": ["joint1"],
+            "policy": {"type": "ACT"},
+            "image_inputs": {
+                "camera/top": "top",
+                "camera/debug": "debug",
+            },
+        }
+    )
+
+    assert config.image_inputs_for({"observation.images.top"}) == {
+        "camera/top": "top"
+    }
 
 
 def test_duplicate_camera_aliases_are_rejected() -> None:

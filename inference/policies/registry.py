@@ -83,12 +83,13 @@ def _expected_image_keys(policy_config: dict[str, Any], camera_aliases: list[str
     if not isinstance(explicit, (list, tuple, set, frozenset)):
         raise ValueError("policy.expected_image_keys must be a list of observation image keys")
     explicit_keys = {str(key) for key in explicit}
-    if explicit_keys != derived:
+    unavailable = explicit_keys - derived
+    if unavailable:
         raise ValueError(
-            "policy.expected_image_keys must match keys produced by image_inputs: "
-            f"expected_image_keys={sorted(explicit_keys)}, image_inputs={sorted(derived)}"
+            "policy.expected_image_keys must be produced by image_inputs: "
+            f"unavailable={sorted(unavailable)}, image_inputs={sorted(derived)}"
         )
-    return derived
+    return explicit_keys
 
 
 def _act_runtime_dimensions(

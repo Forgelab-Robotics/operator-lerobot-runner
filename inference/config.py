@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,20 @@ class PolicyNodeConfig:
     def alias_for_cameras(self) -> list[str]:
         """相机别名顺序；由 YAML image_inputs 定义顺序决定。"""
         return list(self.image_input_id_to_alias.values())
+
+    def image_inputs_for(
+        self,
+        required_image_keys: Collection[str] | None,
+    ) -> dict[str, str]:
+        """Return only runtime image inputs consumed by the loaded policy."""
+        if required_image_keys is None:
+            return dict(self.image_input_id_to_alias)
+        required = set(required_image_keys)
+        return {
+            input_id: alias
+            for input_id, alias in self.image_input_id_to_alias.items()
+            if f"observation.images.{alias}" in required
+        }
 
     def runtime_policy_config(self) -> dict[str, Any]:
         """生成策略运行时配置，补齐可由节点配置推断的字段。"""

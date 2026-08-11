@@ -606,6 +606,68 @@ def test_pi05_from_pretrained_injects_local_tokenizer_and_strict_loader(
     assert captured["policy_loader"] is load_pi05_policy_strict
 
 
+def test_pi05_from_pretrained_allows_subset_and_ignores_extra_camera(monkeypatch) -> None:
+    policy = FakePI05Policy()
+    config = SimpleNamespace(
+        type="pi05",
+        image_features={
+            "observation.images.front": object(),
+            "observation.images.wrist": object(),
+        },
+    )
+    monkeypatch.setattr(
+        pi05_sync,
+        "ensure_pi05_offline_assets",
+        lambda pretrained_path, tokenizer_path: (Path("/policy"), "/tokenizer"),
+    )
+    monkeypatch.setattr(pi05_sync, "load_local_tokenizer", lambda path: object())
+    monkeypatch.setattr(
+        pi05_sync,
+        "load_policy_bundle",
+        lambda path, **kwargs: (policy, FakeProcessor(), FakeProcessor(), config),
+    )
+
+    adapter = PI05PolicyAdapter.from_pretrained(
+        "/policy",
+        tokenizer_path="/tokenizer",
+        expected_image_keys={
+            "observation.images.wrist",
+            "observation.images.debug",
+        },
+    )
+
+    assert adapter.required_image_keys == frozenset({"observation.images.wrist"})
+    assert policy._preprocess_images.__func__ is pi05_sync._preprocess_images_in_checkpoint_order
+
+
+def test_pi05_missing_camera_keeps_checkpoint_slot_order() -> None:
+    front_key = "observation.images.front"
+    wrist_key = "observation.images.wrist"
+
+    class FakeImagePolicy:
+        def __init__(self) -> None:
+            self.config = SimpleNamespace(
+                image_features={front_key: object(), wrist_key: object()},
+                image_resolution=(4, 5),
+            )
+            self.parameter = torch.nn.Parameter(torch.zeros(1))
+
+        def parameters(self):
+            return iter((self.parameter,))
+
+    wrist = torch.full((1, 3, 4, 5), 0.75)
+    images, masks = pi05_sync._preprocess_images_in_checkpoint_order(
+        FakeImagePolicy(),
+        {wrist_key: wrist},
+    )
+
+    assert len(images) == 2
+    assert torch.all(images[0] == -1)
+    assert masks[0].tolist() == [False]
+    torch.testing.assert_close(images[1], torch.full_like(wrist, 0.5))
+    assert masks[1].tolist() == [True]
+
+
 def test_pi05_from_pretrained_rejects_camera_mismatch(monkeypatch) -> None:
     policy = FakePI05Policy()
     config = SimpleNamespace(
@@ -624,7 +686,7 @@ def test_pi05_from_pretrained_rejects_camera_mismatch(monkeypatch) -> None:
         lambda path, **kwargs: (policy, FakeProcessor(), FakeProcessor(), config),
     )
 
-    with pytest.raises(ValueError, match="camera mapping does not match"):
+    with pytest.raises(ValueError, match="no keys in common"):
         PI05PolicyAdapter.from_pretrained(
             "/policy",
             tokenizer_path="/tokenizer",
@@ -632,8 +694,15 @@ def test_pi05_from_pretrained_rejects_camera_mismatch(monkeypatch) -> None:
         )
 
 
+def test_explicit_image_keys_can_select_dora_alias_subset() -> None:
+    assert _expected_image_keys(
+        {"expected_image_keys": ["observation.images.front"]},
+        ["front", "debug"],
+    ) == {"observation.images.front"}
+
+
 def test_explicit_image_keys_cannot_bypass_dora_aliases() -> None:
-    with pytest.raises(ValueError, match="must match keys produced by image_inputs"):
+    with pytest.raises(ValueError, match="must be produced by image_inputs"):
         _expected_image_keys(
             {"expected_image_keys": ["observation.images.front"]},
             ["wrist"],

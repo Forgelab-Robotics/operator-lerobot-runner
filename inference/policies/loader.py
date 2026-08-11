@@ -20,6 +20,7 @@ PolicyLoader = Callable[
     [type[PreTrainedPolicy], Path, PreTrainedConfig],
     PreTrainedPolicy,
 ]
+ConfigTransform = Callable[[PreTrainedConfig], None]
 
 
 def resolve_device(requested: str | None = None) -> torch.device:
@@ -37,6 +38,7 @@ def load_policy_bundle(
     preprocessor_overrides: dict[str, Any] | None = None,
     policy_config_overrides: dict[str, Any] | None = None,
     policy_loader: PolicyLoader | None = None,
+    config_transform: ConfigTransform | None = None,
 ) -> tuple[PreTrainedPolicy, PolicyProcessorPipeline, PolicyProcessorPipeline, PreTrainedConfig]:
     """Load a policy and its processors with optional checkpoint config overrides."""
     path = Path(pretrained_path).expanduser().resolve()
@@ -45,6 +47,8 @@ def load_policy_bundle(
         for key, value in (policy_config_overrides or {}).items()
     ]
     config = PreTrainedConfig.from_pretrained(path, cli_overrides=cli_overrides)
+    if config_transform is not None:
+        config_transform(config)
     dev = resolve_device(device or getattr(config, "device", None))
     config.device = str(dev)
     policy_cls = get_policy_class(config.type)

@@ -19,6 +19,46 @@ from lerobot_inference.inference.policies.loader import load_policy_bundle
 
 logger = logging.getLogger(__name__)
 
+_IMAGE_KEY_PREFIX = "observation.images."
+
+
+def _select_act_image_features(
+    config: Any,
+    runtime_image_keys: set[str] | None,
+) -> set[str]:
+    """Restrict ACT visual features to runtime cameras present in the checkpoint."""
+    model_image_keys = set(config.image_features)
+    if runtime_image_keys is None:
+        return model_image_keys
+
+    active_image_keys = model_image_keys & runtime_image_keys
+    ignored_runtime_keys = runtime_image_keys - model_image_keys
+    omitted_model_keys = model_image_keys - runtime_image_keys
+
+    if ignored_runtime_keys:
+        logger.warning(
+            "Ignoring image inputs not used by the ACT checkpoint: %s",
+            sorted(ignored_runtime_keys),
+        )
+    if omitted_model_keys:
+        logger.warning(
+            "Omitting ACT checkpoint image features not provided at runtime: %s",
+            sorted(omitted_model_keys),
+        )
+
+    if not active_image_keys and model_image_keys:
+        raise ValueError(
+            "ACT runtime image inputs have no keys in common with the checkpoint: "
+            f"runtime={sorted(runtime_image_keys)}, checkpoint={sorted(model_image_keys)}"
+        )
+
+    config.input_features = {
+        key: feature
+        for key, feature in config.input_features.items()
+        if key not in omitted_model_keys
+    }
+    return active_image_keys
+
 
 class ACTPolicyAdapter(LerobotPolicyAdapter):
     """Chunked ACT inference via LeRobot select_action + processor pipelines."""
@@ -52,29 +92,32 @@ class ACTPolicyAdapter(LerobotPolicyAdapter):
         torch_compile: bool = False,
         policy_config_overrides: dict[str, Any] | None = None,
     ) -> ACTPolicyAdapter:
+        runtime_image_keys = (
+            set(expected_image_keys) if expected_image_keys is not None else None
+        )
         policy, preprocessor, postprocessor, config = load_policy_bundle(
             pretrained_path,
             device=device,
             policy_config_overrides=policy_config_overrides,
+            config_transform=lambda config: _select_act_image_features(
+                config,
+                runtime_image_keys,
+            ),
         )
         if config.type != "act":
             raise ValueError(f"ACTPolicyAdapter expects type act, got {config.type!r}")
         policy = maybe_compile_policy(policy, enabled=torch_compile)
         model_image_keys = set(config.image_features)
-        if expected_image_keys is not None and expected_image_keys != model_image_keys:
-            missing = sorted(model_image_keys - expected_image_keys)
-            unexpected = sorted(expected_image_keys - model_image_keys)
-            raise ValueError(
-                "ACT camera mapping does not match checkpoint features: "
-                f"missing={missing}, unexpected={unexpected}, "
-                f"checkpoint={sorted(model_image_keys)}"
-            )
         return cls(
             policy,
             preprocessor,
             postprocessor,
             expected_image_keys=model_image_keys,
         )
+
+    @property
+    def required_image_keys(self) -> frozenset[str]:
+        return frozenset(self._expected_image_keys)
 
     def validate_io_dimensions(self, state_dim: int, action_dim: int) -> None:
         """Validate observation and command dimensions independently."""
@@ -121,7 +164,12 @@ class ACTPolicyAdapter(LerobotPolicyAdapter):
             raise ValueError("ACT still has queued actions; do not provide a new observation")
         if observation:
             self._validate_observation(observation)
-            prepared_observation = dict(observation)
+            prepared_observation = {
+                key: value
+                for key, value in observation.items()
+                if not key.startswith(_IMAGE_KEY_PREFIX)
+                or key in self._expected_image_keys
+            }
             for image_key in self._expected_image_keys:
                 image = np.asarray(prepared_observation[image_key])
                 if not image.flags.writeable:

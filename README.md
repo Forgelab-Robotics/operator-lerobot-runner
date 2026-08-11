@@ -93,7 +93,7 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 
 1. `joints` 的顺序和数量与模型 action 维度一致（7D 对应 7 个关节，14D 对应 14 个关节）。
 2. 默认使用 `joints` 构造 `observation.state`；若 state 与 action 的维度或顺序不同，单独配置顶层 `state_joints`。
-3. `image_inputs` 的 alias 必须与 checkpoint 的 image feature key 一致。
+3. `image_inputs` 的 key 可以是任意 Dora image topic/input ID；alias 用于匹配 checkpoint 的 `observation.images.<alias>`。ACT 和 PI0.5 都使用运行时与 checkpoint 相机的交集（至少需一路匹配），额外 topic 会被忽略。减少训练时使用的视角可能降低策略效果；PI0.5 会为缺失视角生成 masked empty image。
 4. `policy.pretrained_path` 指向包含 `model.safetensors` 的目录。
 5. `policy.torch_compile` 默认关闭；启用时应在控制开始前完成首次 forward warmup。
 

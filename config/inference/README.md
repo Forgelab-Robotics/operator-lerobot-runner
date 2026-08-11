@@ -20,7 +20,7 @@ uv run lerobot infer --config config/inference/pi05_async_rtc.yaml
 使用前必须修改模型路径，并确保：
 
 - `joints`、可选的 `state_joints` 与 checkpoint 的 state/action features 一致。
-- `image_inputs` 的 alias 与 checkpoint 的 `observation.images.<alias>` 一致。
+- `image_inputs` 的 key 可使用任意 Dora image topic/input ID，alias 用于匹配 checkpoint 的 `observation.images.<alias>`。ACT 和 PI0.5 都使用运行时与 checkpoint 相机的交集（至少一路匹配），未匹配的额外 topic 会被忽略；PI0.5 会将缺失视角补为 masked empty image。
 - PI0.5 的 `tokenizer_path` 指向完整的本地 tokenizer 目录。
 - PI0.5 的 `instruction` 与训练数据中的 task 文本一致。
 - YAML 中的相对路径相对于该 YAML 所在目录解析。

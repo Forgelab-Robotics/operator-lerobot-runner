@@ -13,13 +13,18 @@ from lerobot_inference.inference.config import load_config
 from lerobot_inference.inference.policies.registry import create_policy_adapter
 
 
-def _build_observation(config, args) -> dict[str, np.ndarray]:
+def _build_observation(
+    config,
+    args,
+    camera_aliases: list[str] | None = None,
+) -> dict[str, np.ndarray]:
     rng = np.random.default_rng(args.seed)
     state_dim = args.state_dim or len(config.state_joint_order)
     observation: dict[str, np.ndarray] = {
         "observation.state": rng.normal(size=state_dim).astype(np.float32),
     }
-    for alias in config.alias_for_cameras:
+    aliases = config.alias_for_cameras if camera_aliases is None else camera_aliases
+    for alias in aliases:
         observation[f"observation.images.{alias}"] = rng.integers(
             0,
             255,
@@ -34,7 +39,9 @@ def run_infer_once(args) -> int:
     config = load_config(config_path=args.config)
     policy = create_policy_adapter(config.runtime_policy_config())
     policy.reset()
-    observation = _build_observation(config, args)
+    image_inputs = config.image_inputs_for(policy.required_image_keys)
+    camera_aliases = list(image_inputs.values())
+    observation = _build_observation(config, args, camera_aliases)
     timeout = float(getattr(args, "async_timeout", 120.0))
     if not np.isfinite(timeout) or timeout <= 0:
         raise ValueError("--async-timeout must be finite and positive")
@@ -42,7 +49,7 @@ def run_infer_once(args) -> int:
     try:
         action = None
         while action is None:
-            action = policy.generate_action(observation, config.alias_for_cameras)
+            action = policy.generate_action(observation, camera_aliases)
             if action is not None:
                 break
             if time.monotonic() >= deadline:

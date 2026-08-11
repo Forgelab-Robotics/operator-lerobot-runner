@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import nullcontext
+from types import MethodType
 from typing import Any
 
 import numpy as np
 import torch
+from lerobot.policies.pi05.modeling_pi05 import resize_with_pad_torch
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.utils import prepare_observation_for_inference
 from lerobot.processor import PolicyProcessorPipeline, RelativeActionsProcessorStep
@@ -21,6 +23,57 @@ from .loading import load_pi05_policy_strict
 
 logger = logging.getLogger(__name__)
 
+_IMAGE_KEY_PREFIX = "observation.images."
+
+
+def _preprocess_images_in_checkpoint_order(
+    policy: PreTrainedPolicy,
+    batch: dict[str, torch.Tensor],
+) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
+    """Prepare PI0.5 images without compacting cameras into earlier slots."""
+    device = next(policy.parameters()).device
+    processed: dict[str, torch.Tensor] = {}
+
+    for key in policy.config.image_features:
+        if key not in batch:
+            continue
+        image = batch[key].to(device=device, dtype=torch.float32)
+        channels_first = image.shape[1] == 3
+        if channels_first:
+            image = image.permute(0, 2, 3, 1)
+        if image.shape[1:3] != policy.config.image_resolution:
+            image = resize_with_pad_torch(image, *policy.config.image_resolution)
+        image = image * 2.0 - 1.0
+        if channels_first:
+            image = image.permute(0, 3, 1, 2)
+        processed[key] = image
+
+    if not processed:
+        raise ValueError(
+            "All image features are missing from the batch. At least one expected. "
+            f"(batch: {batch.keys()}) (image_features: {policy.config.image_features})"
+        )
+
+    template = next(iter(processed.values()))
+    batch_size = template.shape[0]
+    images: list[torch.Tensor] = []
+    image_masks: list[torch.Tensor] = []
+    for key in policy.config.image_features:
+        image = processed.get(key)
+        if image is None:
+            images.append(torch.full_like(template, -1))
+            image_masks.append(torch.zeros(batch_size, dtype=torch.bool, device=device))
+        else:
+            images.append(image)
+            image_masks.append(torch.ones(batch_size, dtype=torch.bool, device=device))
+    return images, image_masks
+
+
+def _preserve_pi05_camera_slots(policy: PreTrainedPolicy) -> None:
+    policy._preprocess_images = MethodType(  # type: ignore[attr-defined]
+        _preprocess_images_in_checkpoint_order,
+        policy,
+    )
 
 
 class PI05PolicyAdapter(LerobotPolicyAdapter):
@@ -93,21 +146,41 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
             for index in range(int(getattr(config, "empty_cameras", 0)))
         }
         model_image_keys = set(config.image_features) - synthetic_image_keys
-        if expected_image_keys is not None and expected_image_keys != model_image_keys:
-            missing = sorted(model_image_keys - expected_image_keys)
-            unexpected = sorted(expected_image_keys - model_image_keys)
+        runtime_image_keys = (
+            set(expected_image_keys)
+            if expected_image_keys is not None
+            else model_image_keys
+        )
+        active_image_keys = model_image_keys & runtime_image_keys
+        missing = sorted(model_image_keys - runtime_image_keys)
+        unexpected = sorted(runtime_image_keys - model_image_keys)
+        if not active_image_keys and model_image_keys:
             raise ValueError(
-                "PI0.5 camera mapping does not match checkpoint features: "
-                f"missing={missing}, unexpected={unexpected}, "
-                f"checkpoint={sorted(model_image_keys)}"
+                "PI0.5 runtime image inputs have no keys in common with the checkpoint: "
+                f"runtime={sorted(runtime_image_keys)}, checkpoint={sorted(model_image_keys)}"
+            )
+        if missing:
+            logger.warning(
+                "PI0.5 will mask checkpoint image features not provided at runtime: %s",
+                missing,
+            )
+            _preserve_pi05_camera_slots(policy)
+        if unexpected:
+            logger.warning(
+                "Ignoring image inputs not used by the PI0.5 checkpoint: %s",
+                unexpected,
             )
         return cls(
             policy,
             preprocessor,
             postprocessor,
             instruction=instruction,
-            expected_image_keys=model_image_keys,
+            expected_image_keys=active_image_keys,
         )
+
+    @property
+    def required_image_keys(self) -> frozenset[str]:
+        return frozenset(self._expected_image_keys)
 
     @property
     def instruction(self) -> str:
@@ -195,7 +268,12 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
 
     def _copy_observation(self, observation: dict[str, Any]) -> dict[str, np.ndarray]:
         self._validate_observation(observation)
-        prepared = dict(observation)
+        prepared = {
+            key: value
+            for key, value in observation.items()
+            if not key.startswith(_IMAGE_KEY_PREFIX)
+            or key in self._expected_image_keys
+        }
         state = np.array(
             prepared["observation.state"],
             dtype=np.float32,

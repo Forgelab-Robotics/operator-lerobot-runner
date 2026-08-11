@@ -19,6 +19,16 @@ class LerobotPolicyAdapter(ABC):
     def is_observation_needed(self) -> bool:
         """Return True when the next step requires a fresh observation."""
 
+    @property
+    def required_image_keys(self) -> frozenset[str] | None:
+        """Image observation keys required by this loaded policy.
+
+        ``None`` keeps all image inputs configured by the runtime. Adapters that
+        resolve checkpoint features should return the exact active key set so the
+        Dora runner can ignore unrelated image topics.
+        """
+        return None
+
     @abstractmethod
     def generate_action(
         self,

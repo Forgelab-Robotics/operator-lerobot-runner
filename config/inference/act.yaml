@@ -44,6 +44,8 @@ policy:
   # 启用时 runner 会按 LeRobot 要求将有效 n_action_steps 设为 1。
   temporal_ensemble_coeff: null
 
+# 左侧可使用任意 Dora input ID；右侧 alias 与 checkpoint 图像特征匹配。
+# 未匹配的 topic 会忽略；运行时未提供的 checkpoint 相机也会从 ACT 前向移除。
 image_inputs:
   image/left: left
   image/right: right
