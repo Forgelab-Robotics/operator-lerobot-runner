@@ -542,13 +542,34 @@ def test_pi05_validates_state_and_action_dimensions() -> None:
         adapter.validate_io_dimensions(3, 3)
 
 
+def test_pi05_relative_actions_accept_lerobot_position_feature_suffix() -> None:
+    preprocessor = FakeProcessor()
+    relative_step = RelativeActionsProcessorStep(
+        enabled=True,
+        exclude_joints=["gripper"],
+        action_names=["joint1.pos", "gripper.pos"],
+    )
+    preprocessor.steps = [relative_step]
+    policy = FakePI05Policy()
+    policy.config.action_feature_names = ["joint1.pos", "gripper.pos"]
+    adapter, _, _, _ = make_adapter(policy=policy, preprocessor=preprocessor)
+
+    adapter.configure_joint_names(
+        ["joint1", "gripper"],
+        ["joint1", "gripper"],
+    )
+
+    assert relative_step.action_names == ["joint1", "gripper"]
+    assert relative_step._build_mask(2) == [True, False]
+
+
 def test_pi05_relative_actions_validate_processor_joint_names() -> None:
     preprocessor = FakeProcessor()
     preprocessor.steps = [
         RelativeActionsProcessorStep(
             enabled=True,
             exclude_joints=["gripper"],
-            action_names=["trained_joint", "gripper"],
+            action_names=["trained_joint.pos", "gripper.pos"],
         )
     ]
     adapter, _, _, _ = make_adapter(preprocessor=preprocessor)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from contextlib import nullcontext
 from types import MethodType
 from typing import Any
@@ -24,6 +25,12 @@ from .loading import load_pi05_policy_strict
 logger = logging.getLogger(__name__)
 
 _IMAGE_KEY_PREFIX = "observation.images."
+_POSITION_FEATURE_SUFFIX = ".pos"
+
+
+def _position_feature_joint_names(names: Sequence[str]) -> list[str]:
+    """Map LeRobot position feature labels to Forge canonical joint names."""
+    return [str(name).removesuffix(_POSITION_FEATURE_SUFFIX) for name in names]
 
 
 def _preprocess_images_in_checkpoint_order(
@@ -230,14 +237,19 @@ class PI05PolicyAdapter(LerobotPolicyAdapter):
             )
         if not action_joint_names:
             raise ValueError("PI0.5 relative actions require non-empty runtime joint names")
+        runtime_feature_names = _position_feature_joint_names(action_joint_names)
         configured_names = getattr(self._policy.config, "action_feature_names", None)
-        if configured_names is not None and list(configured_names) != action_joint_names:
+        if configured_names is not None and (
+            _position_feature_joint_names(configured_names) != runtime_feature_names
+        ):
             raise ValueError(
                 "Runtime action joints do not match checkpoint action_feature_names: "
                 f"runtime={action_joint_names}, checkpoint={list(configured_names)}"
             )
         processor_names = relative_step.action_names
-        if processor_names is not None and list(processor_names) != action_joint_names:
+        if processor_names is not None and (
+            _position_feature_joint_names(processor_names) != runtime_feature_names
+        ):
             raise ValueError(
                 "Runtime action joints do not match processor action_names: "
                 f"runtime={action_joint_names}, processor={list(processor_names)}"
