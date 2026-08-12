@@ -153,6 +153,23 @@ policy:
   instruction: pick up the black bowl and place it on the plate
 ```
 
+## 模型来源
+
+各策略可用的 checkpoint 与附属组件来源如下（离线部署须先本地化下载并固定
+revision，`huggingface-cli download <repo> --revision <hash>` 可确定具体版本）：
+
+| 策略 | checkpoint 来源 | 附属组件 | 许可证 |
+| --- | --- | --- | --- |
+| ACT | 内部训练产物，经 `convert` 转换为 LeRobot 格式（见上文"转换 ACT 权重"） | 无 | — |
+| Pi0.5 | 内部 pi05 训练产物（`lerobot_trainer`），`pretrained_path` 指向本地目录 | PALIGEMMA tokenizer（本地化） | — |
+| Diffusion | 官方 LeRobot Hub 系列，如 `lerobot/diffusion_pusht`、`lerobot/diffusion_policy_simultaneous_*` | 无 | Apache-2.0 |
+| LingBot-VA | 官方 `lerobot/lingbot_va_libero_long` | 冻结 Wan VAE + UMT5：`robbyant/lingbot-va-base`（含 `vae/`、`text_encoder/`、`tokenizer/` 子目录） | 见各 HF 仓库 |
+| VLA-JEPA | 官方 `lerobot/VLA-JEPA-LIBERO` | Qwen3-VL 骨干 `Qwen/Qwen3-VL-2B-Instruct`；V-JEPA2 编码器 `facebook/vjepa2-vitl-fpc64-256`（推理可跳过） | Apache-2.0 / MIT |
+
+> 除标注"内部"的 ACT / Pi0.5 外，其余策略均直接加载 LeRobot 官方 Hub 发布的
+> checkpoint；运行时按需下载或在配置中指向本地目录。VLA-JEPA 的完整来源与
+> 固定 revision 记录见 `examples/dora_sim_infer_vla_jepa_8d_bin/README.md`。
+
 ## 打包
 
 ```bash
