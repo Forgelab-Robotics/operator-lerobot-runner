@@ -67,6 +67,16 @@ wheels = [
 ]
 
 [[package]]
+name = "av"
+version = "18.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ae/a4/570a5a35c8638aba01e739925846c35fdd6b0756a15526766d0a4dd3b7df/av-18.0.0.tar.gz", hash = "sha256:4ef7e72c3d3a872584a1215173b16e0226811037f40dcdbf75992631098df1ba", size = 4340222, upload-time = "2026-07-02T06:37:58.907Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/b9/7708c43fed7ae28b4a1bad060b4221e3334cd827cec24f7165902a6ac1f4/av-18.0.0-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ae56b40b6f8b067a8ad2dac664fbfbabac7f7a55b9a7bb031eb99289252bc017", size = 35536910, upload-time = "2026-07-02T06:37:08.806Z" },
+    { url = "https://files.pythonhosted.org/packages/76/92/810da80b12680d4c4fe235bd1b4003289be9213ac7f114b77b8ecf0e3b3e/av-18.0.0-cp311-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:0f65518a184613e41536f29e8758c8e3d8293e46bf5bef108f04f925bbfa3f44", size = 36619869, upload-time = "2026-07-02T06:37:18.495Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.6.17"
 source = { registry = "https://pypi.org/simple" }
@@ -177,6 +187,26 @@ nvtx = [
 ]
 
 [[package]]
+name = "diffusers"
+version = "0.39.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "filelock" },
+    { name = "httpx" },
+    { name = "huggingface-hub" },
+    { name = "importlib-metadata" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "regex" },
+    { name = "requests" },
+    { name = "safetensors" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1a/81/6095237b86a3116c4789f28c4435d5296c00c0fc74ffde99008fd6b3a36c/diffusers-0.39.0.tar.gz", hash = "sha256:14bb1d98c85a0e463d734c99aaa73b480a7bc9bad22af30fbf730ef8f09c1d67", size = 4651240, upload-time = "2026-07-03T08:48:47.904Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/3f/7469c46e9d22307ea686bab687d70e6bf328722952f9d10339f5e913e608/diffusers-0.39.0-py3-none-any.whl", hash = "sha256:912aca51b5787365110806e984d5555735bf8a461073bb8459029d0bca7870ef", size = 5631176, upload-time = "2026-07-03T08:48:45.337Z" },
+]
+
+[[package]]
 name = "docopt"
 version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
@@ -240,13 +270,13 @@ wheels = [
 
 [[package]]
 name = "forge-common"
-version = "0.1.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fcommon&rev=dev#2f6045cf975f52e5cfe766cb09da2796b11f3769" }
+version = "1.0.0"
+source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fcommon&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
 
 [[package]]
 name = "forge-msgs"
-version = "0.1.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fmsgs&rev=dev#2f6045cf975f52e5cfe766cb09da2796b11f3769" }
+version = "1.0.0"
+source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fmsgs&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
 dependencies = [
     { name = "numpy" },
     { name = "pillow" },
@@ -256,8 +286,8 @@ dependencies = [
 
 [[package]]
 name = "forge-policy"
-version = "0.1.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fpolicy&rev=dev#2f6045cf975f52e5cfe766cb09da2796b11f3769" }
+version = "1.0.0"
+source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fpolicy&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
 dependencies = [
     { name = "dora-rs" },
     { name = "forge-msgs" },
@@ -364,6 +394,18 @@ wheels = [
 ]
 
 [[package]]
+name = "importlib-metadata"
+version = "9.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "zipp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/01/15bb152d77b21318514a96f43af312635eb2500c96b55398d020c93d86ea/importlib_metadata-9.0.0.tar.gz", hash = "sha256:a4f57ab599e6a2e3016d7595cfd72eb4661a5106e787a95bcc90c7105b831efc", size = 56405, upload-time = "2026-03-20T06:42:56.999Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/3d/2d244233ac4f76e38533cfcb2991c9eb4c7bf688ae0a036d30725b8faafe/importlib_metadata-9.0.0-py3-none-any.whl", hash = "sha256:2d21d1cc5a017bd0559e36150c21c830ab1dc304dedd1b7ea85d20f45ef3edd7", size = 27789, upload-time = "2026-03-20T06:42:55.665Z" },
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -421,6 +463,11 @@ smolvla = [
     { name = "num2words" },
     { name = "transformers" },
 ]
+vla-jepa = [
+    { name = "diffusers" },
+    { name = "qwen-vl-utils" },
+    { name = "transformers" },
+]
 
 [[package]]
 name = "lerobot-inference"
@@ -433,7 +480,7 @@ dependencies = [
     { name = "forge-msgs" },
     { name = "forge-policy" },
     { name = "huggingface-hub" },
-    { name = "lerobot", extra = ["pi", "smolvla"] },
+    { name = "lerobot", extra = ["pi", "smolvla", "vla-jepa"] },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "packaging" },
@@ -462,7 +509,7 @@ requires-dist = [
     { name = "forge-msgs", git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fmsgs&rev=dev" },
     { name = "forge-policy", git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fpolicy&rev=dev" },
     { name = "huggingface-hub", specifier = ">=0.20.0" },
-    { name = "lerobot", extras = ["pi", "smolvla"], specifier = "==0.6.1" },
+    { name = "lerobot", extras = ["pi", "smolvla", "vla-jepa"], specifier = "==0.6.1" },
     { name = "numpy", specifier = "==2.2.6" },
     { name = "opencv-python", specifier = ">=4.8.0" },
     { name = "packaging", specifier = ">=24.0" },
@@ -866,6 +913,21 @@ wheels = [
 ]
 
 [[package]]
+name = "qwen-vl-utils"
+version = "0.0.14"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "av" },
+    { name = "packaging" },
+    { name = "pillow" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/b1/ad4fc2260a3badd278b38d642f3b987412f1f6682f0ef2b31b0572d5caa8/qwen_vl_utils-0.0.14.tar.gz", hash = "sha256:9c7cad5ae803b3a10f8bb7194deb12aeacdd032f92f4224e880c73587a7346ad", size = 8453, upload-time = "2025-09-23T09:38:57.532Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/43/80f67e0336cb2fc725f8e06f7fe35c1d0fe946f4d2b8b2175e797e07349e/qwen_vl_utils-0.0.14-py3-none-any.whl", hash = "sha256:5e28657bfd031e56bd447c5901b58ddfc3835285ed100f4c56580e0ade054e96", size = 8120, upload-time = "2025-09-23T09:38:56.297Z" },
+]
+
+[[package]]
 name = "regex"
 version = "2026.7.10"
 source = { registry = "https://pypi.org/simple" }
@@ -1116,4 +1178,13 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
+]
+
+[[package]]
+name = "zipp"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/d8/eab98a517c14134c0b2eb4e2387bc5f457334293ec5d2dd3857ec2966802/zipp-4.1.0.tar.gz", hash = "sha256:4cb57381f544315db7688e976e922a2b18cdb513d21cc194eb42232ba2a3e602", size = 26214, upload-time = "2026-05-18T20:08:57.967Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/13/547360d81e6d88d58492968ffda9f9542854f11310ee556fef14260cc886/zipp-4.1.0-py3-none-any.whl", hash = "sha256:25ad4e16390cd314347dd8f1de67a2ac538ae658ed4ab9db16029c07c188e97f", size = 10238, upload-time = "2026-05-18T20:08:57.045Z" },
 ]
