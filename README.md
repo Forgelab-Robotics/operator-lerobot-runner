@@ -87,6 +87,7 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 | `config/inference/pi05.yaml` | PI0.5 同步 `select_action()` |
 | `config/inference/pi05_async_rtc.yaml` | PI0.5 异步 Real-Time Chunking |
 | `config/inference/fastwam_libero.yaml` | FastWAM 同步 `select_action()`、严格离线加载 |
+| `config/inference/fastwam_robotwin.yaml` | FastWAM RoboTwin 组合图像、14D 单次推理 |
 
 完整说明见 `config/inference/README.md`。
 
@@ -148,6 +149,17 @@ HF_HUB_OFFLINE=1 uv run lerobot infer-once \
 模板中的 `policy.wan_diffusers_path` 指向包含 `vae/`、`text_encoder/` 的本地
 snapshot，`policy.tokenizer_path` 指向本地 `google/umt5-xxl` 目录。首次真实推理
 需要可用的 NVIDIA GPU；应记录模型加载时间、首次推理时间及 CPU/GPU 内存峰值。
+
+RoboTwin 模板使用 14 维 state/action。模型名中的 `3cam` 表示训练时的三相机
+组合输入，但 checkpoint 对外只定义一个 `(3,384,320)` 的
+`observation.images.image`；运行时必须先按训练管线生成该组合图像：
+
+```bash
+HF_HUB_OFFLINE=1 uv run lerobot infer-once \
+  --config config/inference/fastwam_robotwin.yaml \
+  --height 384 \
+  --width 320
+```
 
 ## 打包
 

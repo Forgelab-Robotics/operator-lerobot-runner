@@ -18,6 +18,7 @@ _CONFIG_DIR = Path(__file__).resolve().parents[1] / "config" / "inference"
         ("pi05.yaml", "pi05", "sync"),
         ("pi05_async_rtc.yaml", "pi05", "async_rtc"),
         ("fastwam_libero.yaml", "fastwam", None),
+        ("fastwam_robotwin.yaml", "fastwam", None),
     ],
 )
 def test_inference_config_example_is_loadable(

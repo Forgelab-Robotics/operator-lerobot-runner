@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 import torch
 
+from lerobot_inference.inference.config import PolicyNodeConfig
 from lerobot_inference.inference.policies import registry
 from lerobot_inference.inference.policies.fastwam import (
     FastWAMPolicyAdapter,
@@ -217,6 +218,35 @@ def test_fastwam_dimension_validation() -> None:
         adapter.validate_io_dimensions(7, 7)
 
 
+def test_fastwam_robotwin_single_composite_image_and_14d_action() -> None:
+    policy = FakeFastWAMPolicy(action=torch.arange(14, dtype=torch.float32)[None])
+    policy.config.input_features = {
+        "observation.state": SimpleNamespace(shape=(14,)),
+        "observation.images.image": SimpleNamespace(shape=(3, 384, 320)),
+    }
+    policy.config.output_features = {"action": SimpleNamespace(shape=(14,))}
+    policy.config.n_action_steps = 1
+    adapter = FastWAMPolicyAdapter(
+        policy,
+        FakeProcessor("pre"),
+        FakeProcessor("post"),
+        instruction="complete the manipulation task",
+        expected_image_keys={"observation.images.image"},
+    )
+    observation = {
+        "observation.state": np.zeros(14, dtype=np.float64),
+        "observation.images.image": np.zeros((384, 320, 3), dtype=np.uint8),
+    }
+
+    adapter.validate_io_dimensions(14, 14)
+    action = adapter.generate_action(observation)
+
+    np.testing.assert_array_equal(action, np.arange(14, dtype=np.float32))
+    batch = policy.select_batches[0]
+    assert batch["observation.state"].shape == (1, 14)
+    assert batch["observation.images.image"].shape == (1, 3, 384, 320)
+
+
 def test_fastwam_config_overrides_are_validated() -> None:
     assert _fastwam_policy_config_overrides(
         {
@@ -379,3 +409,15 @@ def test_fastwam_registry_factory(monkeypatch) -> None:
         "observation.images.image",
         "observation.images.image2",
     }
+
+
+def test_fastwam_robotwin_config_matches_checkpoint_contract() -> None:
+    config_path = Path(__file__).resolve().parents[1] / "config/inference/fastwam_robotwin.yaml"
+    config = PolicyNodeConfig.from_yaml_path(config_path)
+    runtime = config.runtime_policy_config()
+
+    assert len(config.state_joint_order) == 14
+    assert len(config.joint_order) == 14
+    assert config.image_input_id_to_alias == {"image/combined": "image"}
+    assert Path(runtime["pretrained_path"]).name == "fastwam_robotwin_uncond_3cam_384"
+    assert runtime["instruction"] == "complete the manipulation task"
