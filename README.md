@@ -42,7 +42,7 @@ uv run lerobot infer-once --help
 ├── common/                # checkpoint 与预训练资产共用逻辑
 ├── convert/               # policy_train ACT → LeRobot checkpoint
 ├── inference/             # Dora 与单次推理实现
-│   └── policies/          # ACT、Pi0.5 策略适配器
+│   └── policies/          # ACT、Pi0.5、FastWAM 策略适配器
 ├── config/                # 按策略拆分的转换与推理配置模板
 ├── examples/              # 转换、7D 与 14D Dora 示例
 ├── scripts/               # 安装、测试、打包辅助脚本
@@ -86,6 +86,7 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 | `config/inference/act.yaml` | ACT 标准 chunk，可选 temporal ensemble |
 | `config/inference/pi05.yaml` | PI0.5 同步 `select_action()` |
 | `config/inference/pi05_async_rtc.yaml` | PI0.5 异步 Real-Time Chunking |
+| `config/inference/fastwam_libero.yaml` | FastWAM 同步 `select_action()`、严格离线加载 |
 
 完整说明见 `config/inference/README.md`。
 
@@ -125,6 +126,28 @@ Pi0.5 提供两个显式 backend：默认 `inference_mode: sync` 使用 LeRobot 
 切换 instruction、pause、stop 或 reset 时会丢弃旧 chunk。加载过程保持 pretrained
 目录只读，并在权重损坏或与 config 不兼容时直接失败，不会回退到随机初始化模型。
 完整配置见 `examples/dora_sim_infer_pi05_7d_bin/`。
+
+### FastWAM 单次推理
+
+当前 FastWAM 接入仅提供同步 `select_action()` 和 `infer-once`，尚未接入 Dora。
+除 LeRobot checkpoint 外，还必须准备本地 Wan2.2 Diffusers VAE、UMT5 text encoder
+及 tokenizer。加载过程强制 `strict=True`，任何权重、Processor 或离线资产缺失都会
+直接失败，不允许联网下载或跨 embodiment 随机初始化。
+
+LIBERO 模板使用 8 维 state、7 维 action，以及 `image`、`image2` 两路 224×224
+RGB 图像。checkpoint 不包含关节名称，因此模板中的 state/action 名称仅供冒烟；
+接入 PaOS 真机前必须按训练数据确认语义、单位和顺序。
+
+```bash
+HF_HUB_OFFLINE=1 uv run lerobot infer-once \
+  --config config/inference/fastwam_libero.yaml \
+  --height 224 \
+  --width 224
+```
+
+模板中的 `policy.wan_diffusers_path` 指向包含 `vae/`、`text_encoder/` 的本地
+snapshot，`policy.tokenizer_path` 指向本地 `google/umt5-xxl` 目录。首次真实推理
+需要可用的 NVIDIA GPU；应记录模型加载时间、首次推理时间及 CPU/GPU 内存峰值。
 
 ## 打包
 

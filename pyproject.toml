@@ -9,7 +9,7 @@ dependencies = [
     "torch",
     "torchvision",
 
-    "lerobot[pi,smolvla]==0.6.1",
+    "lerobot[fastwam,pi,smolvla]==0.6.1",
     "transformers>=5.4.0,<5.6.0",
 
     "numpy==2.2.6",

@@ -149,7 +149,13 @@ class PolicyNodeConfig:
         base = p.parent
         policy = data.get("policy")
         if isinstance(policy, dict):
-            for key in ("run_dir", "pretrained_path", "tokenizer_path", "ckpt_path"):
+            for key in (
+                "run_dir",
+                "pretrained_path",
+                "tokenizer_path",
+                "wan_diffusers_path",
+                "ckpt_path",
+            ):
                 value = policy.get(key)
                 if not value:
                     continue
