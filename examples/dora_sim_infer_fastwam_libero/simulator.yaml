@@ -1,0 +1,22 @@
+policy_id: fastwam_libero_dora
+control_dir: ./control
+image_every_ticks: 5
+state_clip: [-10.0, 10.0]
+
+state_joints: [state_0, state_1, state_2, state_3, state_4, state_5, state_6, state_7]
+action_joints: [action_0, action_1, action_2, action_3, action_4, action_5, gripper]
+initial_state: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# LIBERO 的 action 为 7D，proprio/state 为 8D；最后一个 state 保持独立。
+action_to_state:
+  action_0: state_0
+  action_1: state_1
+  action_2: state_2
+  action_3: state_3
+  action_4: state_4
+  action_5: state_5
+  gripper: state_6
+
+images:
+  image/camera_0: { width: 224, height: 224, pattern: 0 }
+  image/camera_1: { width: 224, height: 224, pattern: 1 }

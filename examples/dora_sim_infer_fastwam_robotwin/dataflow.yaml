@@ -1,0 +1,25 @@
+# Stage 4/5: manual lifecycle and complete FastWAM message loop.
+nodes:
+  - id: simulator
+    path: ../fastwam_dora_support/project_python.sh
+    args: ../fastwam_dora_support/protocol_node.py simulator --config ./simulator.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      action: policy/action
+      policy_command_status: policy/policy_command_status
+    outputs:
+      - proprio_state
+      - image/combined
+      - policy_command
+
+  - id: policy
+    path: ../../.venv/bin/lerobot
+    args: infer --config ./policy_fastwam.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      proprio_state: simulator/proprio_state
+      image/combined: simulator/image/combined
+      policy_command: simulator/policy_command
+    outputs:
+      - action
+      - policy_command_status
