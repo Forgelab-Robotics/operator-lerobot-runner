@@ -1,6 +1,6 @@
 # LeRobot Inference
 
-将旧版 `policy_train` 的 ACT 产物转换为 LeRobot checkpoint，并以 CLI 或 Dora 节点运行在线推理。
+将旧版 `policy_train` 的 ACT 产物转换为 LeRobot checkpoint，并以 CLI 或 Dora 节点运行在线推理；同时支持 FastWAM 在 LIBERO 中进行闭环评估。
 
 ```text
 policy_train ACT ── convert ──> pretrained_model/ ── infer ──> Dora JointCommand
@@ -30,6 +30,7 @@ uv run pytest
 uv run lerobot convert --help
 uv run lerobot infer --help
 uv run lerobot infer-once --help
+uv run lerobot eval-libero --help
 ```
 
 兼容命令 `lerobot-convert`、`lerobot-infer` 和 `lerobot-infer-once` 仍可使用。
@@ -41,7 +42,7 @@ uv run lerobot infer-once --help
 ├── cli.py                 # 统一 CLI 入口
 ├── common/                # checkpoint 与预训练资产共用逻辑
 ├── convert/               # policy_train ACT → LeRobot checkpoint
-├── inference/             # Dora 与单次推理实现
+├── inference/             # Dora、单次推理与 LIBERO 闭环评估实现
 │   └── policies/          # ACT、Pi0.5、FastWAM 策略适配器
 ├── config/                # 按策略拆分的转换与推理配置模板
 ├── examples/              # 转换、7D 与 14D Dora 示例
@@ -160,6 +161,49 @@ HF_HUB_OFFLINE=1 uv run lerobot infer-once \
   --height 384 \
   --width 320
 ```
+
+### FastWAM × LIBERO 闭环评估
+
+`eval-libero` 使用当前 `FastWAMPolicyAdapter` 在真实 LIBERO MuJoCo 环境中执行
+固定初始状态闭环评估，并输出成功状态、逐步动作、运行日志和双相机视频。LIBERO
+依赖位于独立的 `libero-eval` extra 中，不需要安装 LIBERO 仓库自带的旧版
+`requirements.txt`。
+
+先同步评估依赖，并设置本地 LIBERO 仓库路径：
+
+```bash
+uv sync --extra dev --extra libero-eval
+
+export LIBERO_ROOT=/path/to/LIBERO
+```
+
+运行默认场景 `libero_spatial / task_id=0 / init_state_id=0`：
+
+```bash
+MUJOCO_GL=egl HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+uv run --extra libero-eval lerobot eval-libero \
+  --config examples/fastwam_libero_eval/policy_fastwam.yaml \
+  --libero-root "${LIBERO_ROOT}" \
+  --suite libero_spatial \
+  --task-id 0 \
+  --episodes 1
+```
+
+默认参数为两路 `256×256` 相机、10 个稳定步、20 Hz 控制频率、每次执行 10 步
+action chunk，以及最多 300 个动作步。运行结果写入：
+
+```text
+examples/fastwam_libero_eval/out/<timestamp>/
+├── result.json
+├── actions.jsonl
+├── rollout.mp4
+├── run.log
+└── runtime_config.yaml
+```
+
+任务未成功但正常运行到 horizon 时命令返回 0；模型加载、环境创建、非有限 action
+或视频写入失败时返回非零。详细参数和输出字段见
+`examples/fastwam_libero_eval/README.md`。
 
 ## 打包
 
