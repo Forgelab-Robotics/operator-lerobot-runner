@@ -12,6 +12,7 @@ from lerobot_inference.inference.policies.act import ACTPolicyAdapter
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.diffusion import DiffusionPolicyAdapter
 from lerobot_inference.inference.policies.lingbot_va import LingBotVAAdapter
+from lerobot_inference.inference.policies.smolvla import SmolVLAAdapter
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
     PI05PolicyAdapter,
@@ -50,7 +51,6 @@ _PLANNED_LEROBOT_TYPES = frozenset(
     {
         "pi0",
         "pi0_fast",
-        "smolvla",
         "vqbet",
         "tdmpc",
         "xvla",
@@ -298,6 +298,39 @@ def _create_vla_jepa(policy_config: dict[str, Any], pretrained_path: str) -> Ler
 
 
 register_policy_type("vla_jepa", _create_vla_jepa)
+
+
+def _smolvla_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # SmolVLA 的视觉语言骨干按名字拉取（默认 HuggingFaceTB/SmolVLM2-*）。
+    # 离线部署把 vlm_model_name 指到本地目录，否则加载时会访问 HF Hub。
+    runtime_keys = (
+        "vlm_model_name",
+        "n_action_steps",
+        "chunk_size",
+        "num_steps",
+        "resize_imgs_with_padding",
+    )
+    return {key: policy_config[key] for key in runtime_keys if key in policy_config}
+
+
+def _create_smolvla(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    adapter = SmolVLAAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        instruction=str(policy_config.get("instruction", "")),
+        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
+        policy_config_overrides=_smolvla_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("smolvla", _create_smolvla)
 
 
 def _diffusion_policy_config_overrides(

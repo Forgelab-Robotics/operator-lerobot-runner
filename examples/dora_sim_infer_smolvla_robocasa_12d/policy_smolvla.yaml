@@ -1,0 +1,57 @@
+# SmolVLA（RoboCasa 12D）— lerobot_inference 策略节点配置
+#
+# smoke（仓库根目录）：
+#   uv run lerobot infer-once --config examples/dora_sim_infer_smolvla_robocasa_12d/policy_smolvla.yaml
+# Dora：
+#   cd examples/dora_sim_infer_smolvla_robocasa_12d && dora run dataflow.yaml
+
+# 动作 12 维。RoboCasa 的机器人是 PandaOmron（Franka 装在全向底盘上），
+# 分量语义：底盘 4 + 控制模式 1 + 末端位姿 6 + 夹爪 1。
+# 其中第 5 维「控制模式」是离散切换量（切底盘/切手臂），不是连续控制；
+# 第 4 维在官方训练数据里恒为 0。
+joints:
+  - {name: base_x,    mode: position}
+  - {name: base_y,    mode: position}
+  - {name: base_yaw,  mode: position}
+  - {name: base_aux,  mode: position}
+  - {name: ctrl_mode, mode: position}
+  - {name: eef_x,     mode: position}
+  - {name: eef_y,     mode: position}
+  - {name: eef_z,     mode: position}
+  - {name: eef_roll,  mode: position}
+  - {name: eef_pitch, mode: position}
+  - {name: eef_yaw,   mode: position}
+  - {name: gripper,   mode: position}
+
+# observation.state 16 维：
+#   base_position(3) + base_rotation(4) + eef_position_relative(3)
+#   + eef_rotation_relative(4) + gripper_qpos(2)
+#
+# 注意：官方 checkpoint 的 config.json 把这一项**声明成 6 维，是错的**。
+# 实测喂 6 维会报 "size of tensor a (6) must match b (16)"。适配器以归一化
+# 统计量为准并给出警告，这里按**实际的 16 维**填。
+state_joints:
+  [base_pos_x, base_pos_y, base_pos_z,
+   base_quat_x, base_quat_y, base_quat_z, base_quat_w,
+   eef_pos_x, eef_pos_y, eef_pos_z,
+   eef_quat_x, eef_quat_y, eef_quat_z, eef_quat_w,
+   gripper_0, gripper_1]
+
+policy:
+  type: smolvla
+  policy_id: smolvla_robocasa
+  auto_start: false          # 由 benchmark 节点发 start，见 README 分阶段验证
+  # RoboCasa 逐 episode 从 env.get_ep_meta()["lang"] 下发真实指令，这里只是占位；
+  # 关掉 send_instruction 会导致整批用同一句错指令推理。
+  instruction: "Close the fridge doors."
+  device: cuda
+  pretrained_path: ./model
+  # 离线部署时指向本地 SmolVLM2 目录，否则加载时会访问 HF Hub
+  # vlm_model_name: /path/to/SmolVLM2-500M-Video-Instruct
+
+image_inputs:
+  # 左键 = dora 通道名；右值 = checkpoint 特征名去掉 observation.images. 前缀。
+  # 与官方 rename_map 对齐：camera1=agentview_left, camera2=eye_in_hand, camera3=agentview_right
+  image/main:   camera1
+  image/second: camera2
+  image/third:  camera3

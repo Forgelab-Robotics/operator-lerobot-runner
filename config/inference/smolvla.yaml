@@ -1,0 +1,47 @@
+# SmolVLA 推理配置模板
+#
+#   uv run lerobot infer-once --config config/inference/smolvla.yaml
+#   uv run lerobot infer      --config config/inference/smolvla.yaml
+#
+# SmolVLA = SmolVLM2 视觉语言骨干 + flow-matching 动作专家，指令条件。
+# 每次推理产出 n_action_steps 长的动作 chunk，由 LeRobot 的队列逐步吐出。
+
+# 动作关节：维度必须与 checkpoint 的 action 特征一致。
+# 官方 lerobot/smolvla_robocasa 是 12 维（PandaOmron 移动机械臂）：
+#   底盘 4 + 控制模式 1 + 末端位姿 6 + 夹爪 1
+joints:
+  - {name: a0,  mode: position}
+  - {name: a1,  mode: position}
+  - {name: a2,  mode: position}
+  - {name: a3,  mode: position}
+  - {name: a4,  mode: position}
+  - {name: a5,  mode: position}
+  - {name: a6,  mode: position}
+  - {name: a7,  mode: position}
+  - {name: a8,  mode: position}
+  - {name: a9,  mode: position}
+  - {name: a10, mode: position}
+  - {name: a11, mode: position}
+
+# observation.state 的维度。
+# 注意：已发布的 SmolVLA checkpoint 的 config.json 里这个字段**是错的**
+# （robocasa 版声明 6 维，实际要 16 维）。适配器以归一化统计量为准并会给出
+# 警告；这里按**实际**维度填，不要抄 config.json。
+state_joints: [s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15]
+
+policy:
+  type: smolvla
+  policy_id: smolvla_robocasa
+  auto_start: false
+  instruction: "Close the fridge doors."   # 运行时可由 set_instruction 覆盖
+  device: cuda
+  pretrained_path: /path/to/smolvla_robocasa
+
+  # 离线部署：指向本地的 SmolVLM2 目录，否则加载时会访问 HF Hub
+  # vlm_model_name: /path/to/SmolVLM2-500M-Video-Instruct
+
+image_inputs:
+  # 左键 = dora 通道名；右值 = checkpoint 特征名去掉 observation.images. 前缀
+  image/main:   camera1
+  image/second: camera2
+  image/third:  camera3
