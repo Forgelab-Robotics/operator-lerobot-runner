@@ -32,6 +32,13 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
 ]
+robotwin = [
+    "h5py>=3.8",
+    "websockets>=14.0",
+    "msgpack>=1.0.8",
+    "msgpack-numpy>=0.4.8",
+    "pydantic>=2.5",
+]
 build = [
     "pyinstaller>=6.0.0",
 ]

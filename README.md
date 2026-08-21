@@ -162,6 +162,108 @@ HF_HUB_OFFLINE=1 uv run lerobot infer-once \
   --width 320
 ```
 
+### FastWAM × RoboTwin 闭环评估
+
+RoboTwin 闭环评估采用“RoboTwin 环境适配层 + `lerobot_runner` 推理后端”的分层方式：
+
+```text
+RoboTwin/SAPIEN（物理 GPU 1）
+    │ 三相机 RGB、14D joint state、动态 instruction
+    ▼
+RoboTwin/XPolicyLab/policy/FastWAM_LeRobot
+    │ WebSocket
+    ▼
+lerobot_runner/.venv/bin/python（物理 GPU 0）
+    │ FastWAMPolicyAdapter.from_pretrained()
+    ▼
+LeRobot checkpoint + Wan2.2 + UMT5
+    │ 10×14 joint action chunk
+    └──────────────────────────────> RoboTwin rollout
+```
+
+`lerobot_runner` 在此流程中提供 Python/uv 运行环境、严格离线资产加载、LeRobot
+processor、FastWAM 推理和原生 action queue；三相机拼图、RoboTwin state/action
+封装、仿真、视频和结果汇总位于 RoboTwin 的独立 XPolicyLab 适配器中。现有
+`RoboTwin/XPolicyLab/policy/FastWAM` 面向原始 `.pt` checkpoint，不参与该流程。
+
+当前接入固定为：
+
+- `place_a2b_left`
+- `demo_clean` 与 seen instruction
+- `aloha_agilex`、`joint`、双臂 `6+1+6+1`
+- 每次规划 10 步，state/action 均为 14 维
+- 物理 GPU 0 运行策略，物理 GPU 1 运行 SAPIEN
+- 不支持 batch、CPU 或单 GPU 回退
+
+假定 `RoboTwin` 与 `lerobot_runner` 已准备在本机目录中。先安装策略 WebSocket
+运行依赖：
+
+```bash
+cd /path/to/lerobot_runner
+uv sync --frozen --extra dev --extra robotwin
+```
+
+如果当前环境还需要保留 LIBERO 评估依赖，可同时传入
+`--extra libero-eval`。随后配置本地路径；所有模型资源必须已经完整下载：
+
+```bash
+export RUNNER_ROOT=/path/to/lerobot_runner
+export ROBOTWIN_ROOT=/path/to/RoboTwin
+export FASTWAM_CHECKPOINT=/path/to/fastwam_robotwin_checkpoint
+export FASTWAM_WAN_DIFFUSERS_PATH=/path/to/Wan2.2-TI2V-5B-Diffusers/snapshot
+export FASTWAM_TOKENIZER_PATH=/path/to/umt5-xxl
+
+cd "${ROBOTWIN_ROOT}/XPolicyLab/policy/FastWAM_LeRobot"
+```
+
+先通过真实 FastWAM 完成一次 XPolicyLab WebSocket 协议检查。它会验证动态指令、
+三相机输入以及有限的 `10×14` action chunk：
+
+```bash
+bash protocol_smoke.sh "${FASTWAM_CHECKPOINT}" "${RUNNER_ROOT}" 0
+```
+
+协议检查通过后，使用环境 seed 参数 `0` 执行单 episode 冒烟。RoboTwin 实际从
+seed `100000` 开始：
+
+```bash
+FASTWAM_EVAL_TEST_NUM=1 bash eval.sh \
+  RoboTwin place_a2b_left "${FASTWAM_CHECKPOINT}" \
+  aloha_agilex joint 0 0 1 "${RUNNER_ROOT}" RoboTwin
+```
+
+最后使用独立环境 seed 参数 `1` 执行 5 个正式 episode，实际从 seed `200000`
+开始，避免重复冒烟场景：
+
+```bash
+FASTWAM_EVAL_TEST_NUM=5 bash eval.sh \
+  RoboTwin place_a2b_left "${FASTWAM_CHECKPOINT}" \
+  aloha_agilex joint 1 0 1 "${RUNNER_ROOT}" RoboTwin
+```
+
+`eval.sh` 会在模型加载前检查双 GPU、CUDA/BF16、离线资产、SAPIEN 渲染、FFmpeg
+H.264 和磁盘空间；任一检查失败都会停止，不会降级到 CPU。策略请求超时固定为
+300 秒，评估视频沿用 RoboTwin 原生头部相机 10 FPS H.264 输出。
+
+成功完成后，RoboTwin 创建的原生结果目录包含：
+
+```text
+<robotwin-result-dir>/
+├── _result.txt
+├── episode*.mp4
+├── summary.json
+├── artifact_manifest.json
+├── actions/
+│   └── episode_<seed>.jsonl
+├── policy_server.log
+└── client.log
+```
+
+`summary.json` 包含完成数、成功数、成功率、各 episode 结果、规划次数以及平均、
+P50、P95 推理时延。成功率没有最低阈值；即使为 0，只要所有 rollout 完整、动作
+有限且产物齐全，技术接入仍视为通过。发生 WebSocket 超时、OOM、rollout 异常或
+NaN/Inf 时会保留 staging 日志和已有 trace，但不会生成技术通过的汇总文件。
+
 ### FastWAM × LIBERO 闭环评估
 
 `eval-libero` 使用当前 `FastWAMPolicyAdapter` 在真实 LIBERO MuJoCo 环境中执行
