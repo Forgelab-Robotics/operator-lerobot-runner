@@ -45,7 +45,7 @@ class VLAJEPAAdapter(LerobotPolicyAdapter):
         self._preprocessor = preprocessor
         self._postprocessor = postprocessor
         self._instruction = str(instruction)
-        self._expected_image_keys = expected_image_keys
+        self._expected_image_keys = frozenset(expected_image_keys)
         self._queued_steps_remaining = 0
         try:
             self._device = next(policy.parameters()).device
@@ -85,6 +85,11 @@ class VLAJEPAAdapter(LerobotPolicyAdapter):
             instruction=instruction,
             expected_image_keys=model_image_keys,
         )
+
+    @property
+    def required_image_keys(self) -> frozenset[str]:
+        """返回 checkpoint 所需的视觉观测键。"""
+        return self._expected_image_keys
 
     def validate_io_dimensions(self, state_dim: int, action_dim: int) -> None:
         """Validate observation and command dimensions independently."""
@@ -208,4 +213,13 @@ class VLAJEPAAdapter(LerobotPolicyAdapter):
             else:
                 self._queued_steps_remaining -= 1
             action = self._postprocessor(action)
-        return action_tensor_to_numpy(action)
+        result = np.asarray(action_tensor_to_numpy(action), dtype=np.float32)
+        model_action_dim = int(self._policy.config.output_features["action"].shape[0])
+        if result.ndim != 1 or result.shape[0] != model_action_dim:
+            raise ValueError(
+                "VLA-JEPA action must be a 1-D vector with checkpoint dimension: "
+                f"shape={result.shape}, expected={model_action_dim}"
+            )
+        if not np.isfinite(result).all():
+            raise ValueError("VLA-JEPA action must contain only finite values")
+        return result

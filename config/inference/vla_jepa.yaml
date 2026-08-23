@@ -28,9 +28,9 @@ joints:
     mode: position
     unit: millimeters
 
-# 可选：当 observation.state 与动作 joints 的维度或顺序不同时单独配置。
-# 未配置时默认沿用上面的 joints。
-# state_joints: [joint1, joint2, joint3, joint4, joint5, joint6, gripper]
+# VLA-JEPA-LIBERO checkpoint 的 observation.state 是 8D：末端位置、轴角和双指夹爪。
+# 动作仍为 7D，因此必须单独声明 state_joints，不能沿用上面的 joints。
+state_joints: [eef_x, eef_y, eef_z, axis_angle_x, axis_angle_y, axis_angle_z, gripper_left, gripper_right]
 
 policy:
   type: vla_jepa
@@ -46,16 +46,16 @@ policy:
   device: cuda
 
   # LeRobot 产物（含 model.safetensors）；state/action 维度与配置对齐。
-  pretrained_path: /path/to/vla_jepa/pretrained_model
+  pretrained_path: /data0/model/VLA-JEPA-LIBERO
 
   # 可选：推理不需要 V-JEPA2 世界模型（训练专用）。设为 false 可跳过
   # V-JEPA2 编码器加载，省显存和加载时间；权重要求与 checkpoint 一致时
   # 默认加载器会跳过未匹配的世界模型权重。
-  # enable_world_model: false
+  enable_world_model: false
 
   # 可选离线部署：Qwen 骨干 / V-JEPA2 编码器默认从 HF Hub 拉取，可指到本地
   # 目录避免联网（须与 checkpoint 训练时的模型完全一致）。
-  # qwen_model_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/qwen3_vl_2b_instruct
+  qwen_model_name: /data0/model/Qwen3-VL-2B-Instruct
   # jepa_encoder_name: /mnt/SSD2_16TB/qinhan/paos_deps/models/vjepa2_vitl_fpc64_256
 
 image_inputs:

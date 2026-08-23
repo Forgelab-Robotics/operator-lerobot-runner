@@ -28,6 +28,7 @@ uv run pytest
 uv run lerobot convert --help
 uv run lerobot infer --help
 uv run lerobot infer-once --help
+uv run lerobot eval-libero --help
 ```
 
 兼容命令 `lerobot-convert`、`lerobot-infer` 和 `lerobot-infer-once` 仍可使用。
@@ -39,8 +40,8 @@ uv run lerobot infer-once --help
 ├── cli.py                 # 统一 CLI 入口
 ├── common/                # checkpoint 与预训练资产共用逻辑
 ├── convert/               # policy_train ACT → LeRobot checkpoint
-├── inference/             # Dora 与单次推理实现
-│   └── policies/          # ACT、Pi0.5 策略适配器
+├── inference/             # Dora、单次推理和 LIBERO 闭环评估
+│   └── policies/          # ACT、Pi0.5、VLA-JEPA 策略适配器
 ├── config/                # 按策略拆分的转换与推理配置模板
 ├── examples/              # 转换、7D 与 14D Dora 示例
 ├── scripts/               # 安装、测试、打包辅助脚本
@@ -105,6 +106,51 @@ dora run dataflow.yaml
 ```
 
 可参考 `examples/dora_infer_act_7d/` 和 `examples/dora_infer_act_14d/` 的完整 dataflow 与策略配置。
+
+## VLA-JEPA LIBERO 闭环评估
+
+VLA-JEPA 的 LIBERO checkpoint 使用 `image`、`image2` 两路相机、8D `observation.state` 和 7D relative action。评测入口会把当前 LIBERO task 的 `language` 注入 Qwen prompt，并按 adapter 的 7-step action chunk 消费动作。
+
+```bash
+MUJOCO_GL=egl HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+uv run --extra libero-eval lerobot eval-libero \
+  --config examples/libero_eval/policy_vla_jepa.yaml \
+  --libero-root /path/to/LIBERO \
+  --suite libero_spatial --task-id 0 --episodes 1 \
+  --init-state-id 0 --seed 0 --episode-length 280
+```
+
+配置中的 `enable_world_model: false` 用于推理时跳过训练专用 V-JEPA2 编码器；如需离线运行，请确认 `pretrained_path` 和 `qwen_model_name` 指向本地资源。
+
+### 运行 LIBERO suite
+
+只使用一个协议配置 `examples/libero_eval/libero_400.yaml`。它会依次运行
+`libero_spatial`、`libero_object`、`libero_goal` 和 `libero_10`，共
+4 suites × 10 tasks × 10 episodes = 400 episodes；各 suite 的 horizon 已由
+`run_suite.py` 按 LIBERO 标准值自动设置。
+
+运行前只需：
+
+1. 在 `policy_vla_jepa.yaml` 中确认 `pretrained_path`、`qwen_model_name` 和 `device`。
+2. 确认 `libero_400.yaml` 中的 `libero_root`。
+
+在仓库根目录运行：
+
+```bash
+cd /path/to/lerobot_runner-vla-jepa
+
+MUJOCO_GL=egl \
+HF_HUB_OFFLINE=1 \
+TRANSFORMERS_OFFLINE=1 \
+uv run --extra libero-eval python examples/libero_eval/run_suite.py
+```
+
+结果保存在 `examples/libero_eval/out/libero_400_<时间戳>/`。跨 suite 汇总位于
+`summary.json`，各任务的结果、动作日志和视频位于
+`<suite>/task_XX/` 子目录。若只想评测部分 suite，直接删减
+`libero_400.yaml` 中的 `suites` 列表即可。
+
+## Pi0.5 推理
 
 Pi0.5 还需要本地 tokenizer 路径和语言指令：
 

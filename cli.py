@@ -1,4 +1,4 @@
-"""统一入口：根据首个参数选择 convert / infer / infer-once。"""
+"""统一入口：根据首个参数选择转换、在线推理或 LIBERO 评估。"""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from lerobot_inference import __version__
 
 
-_COMMANDS = ("convert", "infer", "infer-once")
+_COMMANDS = ("convert", "infer", "infer-once", "eval-libero")
 
 _PROG_ALIASES = {
     "lerobot-convert": "convert",
@@ -63,13 +63,14 @@ def _build_parser() -> argparse.ArgumentParser:
         description=(
             "LeRobot 推理与转换统一工具。\n"
             "通过第一个参数选择功能：convert（转换）、infer（Dora 在线推理）、"
-            "infer-once（本地单步 smoke）。"
+            "infer-once（本地单步 smoke）、eval-libero（LIBERO 闭环评估）。"
         ),
         epilog=(
             "示例:\n"
             "  lerobot convert --config examples/dora_convert/convert.yaml\n"
             "  lerobot infer --config examples/dora_infer_act_7d/policy_act.yaml\n"
             "  lerobot infer-once --config examples/dora_infer_act_7d/policy_act.yaml\n"
+            "  lerobot eval-libero --config examples/libero_eval/policy_vla_jepa.yaml --libero-root /path/to/LIBERO\n"
             "\n"
             "兼容说明:\n"
             "  若通过 lerobot-convert / lerobot-infer / lerobot-infer-once 调用，\n"
@@ -89,7 +90,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="command",
         title="功能",
         description="必须指定下列之一作为第一个参数",
-        metavar="{convert,infer,infer-once}",
+        metavar="{convert,infer,infer-once,eval-libero}",
         required=True,
     )
 
@@ -223,6 +224,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_once.set_defaults(_handler="infer-once")
 
+    # —— eval-libero ——
+    p_eval = _add_subparser(
+        subparsers,
+        "eval-libero",
+        help="在本地 LIBERO 场景中闭环评估通用策略",
+        description="LIBERO 评估：加载已注册 policy adapter，输出结果、动作日志和双相机视频。",
+    )
+    p_eval.add_argument("--config", type=str, required=True, help="通用策略推理 YAML 配置路径")
+    p_eval.add_argument("--libero-root", type=str, required=True, help="本地 LIBERO 仓库根目录")
+    p_eval.add_argument("--suite", type=str, default="libero_spatial", help="任务套件名称")
+    p_eval.add_argument("--task-id", type=int, default=0, help="任务编号")
+    p_eval.add_argument("--episodes", type=int, default=1, help="episode 数量")
+    p_eval.add_argument("--init-state-id", type=int, default=0, help="首个初始状态编号")
+    p_eval.add_argument("--seed", type=int, default=0, help="环境随机种子")
+    p_eval.add_argument("--episode-length", type=int, default=280, help="每个 episode 最大步数；suite 专用 horizon 请通过协议 YAML 指定")
+    p_eval.add_argument("--num-steps-wait", type=int, default=10, help="reset 后稳定步数")
+    p_eval.add_argument("--control-freq", type=int, default=20, help="控制频率和视频帧率")
+    p_eval.add_argument("--observation-size", type=int, default=256, help="相机渲染边长")
+    p_eval.add_argument("--output-dir", type=str, default="examples/libero_eval/out", help="运行输出父目录")
+    p_eval.set_defaults(_handler="eval-libero")
+
     return parser
 
 
@@ -230,7 +252,7 @@ def _normalize_argv(argv: list[str] | None) -> list[str]:
     """保证 argv[0] 为子命令；兼容旧入口名自动注入。
 
     不注入的情况：
-    - 已显式写出 convert / infer / infer-once
+    - 已显式写出 convert / infer / infer-once / eval-libero
     - 仅要顶层元信息（无参数、-h / --help 或 --version）
     """
     args = list(sys.argv[1:] if argv is None else argv)
@@ -262,8 +284,12 @@ def main(argv: list[str] | None = None) -> int:
         from lerobot_inference.inference.run_once import run_infer_once
 
         return run_infer_once(args)
+    if handler == "eval-libero":
+        from lerobot_inference.inference.libero_eval import run_libero_eval
 
-    parser.error("未知功能，请指定 convert / infer / infer-once")
+        return run_libero_eval(args)
+
+    parser.error("未知功能，请指定 convert / infer / infer-once / eval-libero")
     return 2
 
 

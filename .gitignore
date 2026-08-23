@@ -10,3 +10,5 @@ bin/
 dist/
 build/
 *.spec.bak
+CLAUDE.md
+examples/libero_eval/out

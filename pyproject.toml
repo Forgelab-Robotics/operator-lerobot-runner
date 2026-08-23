@@ -48,9 +48,21 @@ dev = [
 build = [
     "pyinstaller>=6.0.0",
 ]
+libero-eval = [
+    "bddl==1.0.1",
+    "easydict>=1.9",
+    "future>=0.18.2",
+    "gym==0.25.2",
+    "imageio[ffmpeg]>=2.30.0,<3.0.0",
+    "matplotlib>=3.5.3",
+    "mujoco==3.3.2",
+    "opencv-python==4.13.0.92",
+    "robosuite==1.4.0",
+]
+
 
 [project.scripts]
-# 统一入口：lerobot <convert|infer|infer-once> ...
+# 统一入口：lerobot <convert|infer|infer-once|eval-libero> ...
 lerobot = "lerobot_inference.cli:main"
 # 兼容旧命令名（自动注入对应子命令）
 lerobot-infer-once = "lerobot_inference.cli:main_infer_once"

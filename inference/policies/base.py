@@ -19,6 +19,11 @@ class LerobotPolicyAdapter(ABC):
     def is_observation_needed(self) -> bool:
         """Return True when the next step requires a fresh observation."""
 
+    @property
+    def required_image_keys(self) -> frozenset[str] | None:
+        """返回当前 checkpoint 需要的视觉 observation 键。"""
+        return None
+
     @abstractmethod
     def generate_action(
         self,

@@ -1,0 +1,11 @@
+# LIBERO 标准 400-episode 协议：4 suites × 10 tasks × 10 episodes。
+policy_config: policy_vla_jepa.yaml
+libero_root: /home/wenyifan/wenyifan/phos/LIBERO
+output_dir: out
+
+# task_ids、episodes_per_task、horizon 等标准参数由 run_suite.py 提供。
+suites:
+  - libero_spatial
+  - libero_object
+  - libero_goal
+  - libero_10

@@ -1,0 +1,23 @@
+joints:
+  - {name: action_0, mode: position, unit: normalized}
+  - {name: action_1, mode: position, unit: normalized}
+  - {name: action_2, mode: position, unit: normalized}
+  - {name: action_3, mode: position, unit: normalized}
+  - {name: action_4, mode: position, unit: normalized}
+  - {name: action_5, mode: position, unit: normalized}
+  - {name: gripper, mode: position, unit: normalized}
+state_joints: [eef_x, eef_y, eef_z, axis_angle_x, axis_angle_y, axis_angle_z, gripper_left, gripper_right]
+policy:
+  type: vla_jepa
+  policy_id: vla_jepa_libero_eval
+  auto_start: false
+  pretrained_path: /data0/model/VLA-JEPA-LIBERO
+  qwen_model_name: /data0/model/Qwen3-VL-2B-Instruct
+  enable_world_model: false
+  instruction: replaced by eval-libero task description
+  device: cuda:1
+  n_action_steps: 7
+  num_inference_timesteps: 4
+image_inputs:
+  image/camera_0: image
+  image/camera_1: image2
