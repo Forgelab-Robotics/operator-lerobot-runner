@@ -8,7 +8,10 @@ from collections.abc import Callable
 from typing import Any
 
 from lerobot_inference.inference.artifact_resolver import resolve_pretrained_path
-from lerobot_inference.inference.policies.act import ACTPolicyAdapter
+from lerobot_inference.inference.policies.act import (
+    ACTAsyncChunkedPolicyAdapter,
+    ACTPolicyAdapter,
+)
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
@@ -131,14 +134,32 @@ def _act_policy_config_overrides(policy_config: dict[str, Any]) -> dict[str, Any
 def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
     from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
 
+    mode = str(policy_config.get("inference_mode", "sync")).strip().lower()
+    if mode not in {"sync", "async_chunked"}:
+        raise ValueError(
+            "ACT policy.inference_mode must be one of: sync, async_chunked"
+        )
+
     camera_aliases = list(policy_config.get("camera_names") or [])
-    adapter = ACTPolicyAdapter.from_pretrained(
-        pretrained_path,
-        device=policy_config.get("device"),
-        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
-        torch_compile=compile_enabled_from_policy_config(policy_config),
-        policy_config_overrides=_act_policy_config_overrides(policy_config),
-    )
+    common_kwargs = {
+        "device": policy_config.get("device"),
+        "expected_image_keys": _expected_image_keys(policy_config, camera_aliases),
+        "torch_compile": compile_enabled_from_policy_config(policy_config),
+        "policy_config_overrides": _act_policy_config_overrides(policy_config),
+    }
+    if mode == "async_chunked":
+        adapter = ACTAsyncChunkedPolicyAdapter.from_pretrained(
+            pretrained_path,
+            **common_kwargs,
+            control_hz=policy_config.get("control_hz", 30.0),
+            actions_per_chunk=policy_config.get("actions_per_chunk"),
+            chunk_size_threshold=policy_config.get("chunk_size_threshold", 0.5),
+        )
+    else:
+        adapter = ACTPolicyAdapter.from_pretrained(
+            pretrained_path,
+            **common_kwargs,
+        )
     state_dim, action_dim = _act_runtime_dimensions(policy_config)
     if state_dim is not None and action_dim is not None:
         adapter.validate_io_dimensions(state_dim, action_dim)

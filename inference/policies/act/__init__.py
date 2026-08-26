@@ -1,5 +1,5 @@
 """ACT inference adapter."""
 
-from .adapter import ACTPolicyAdapter
+from .adapter import ACTAsyncChunkedPolicyAdapter, ACTPolicyAdapter
 
-__all__ = ["ACTPolicyAdapter"]
+__all__ = ["ACTAsyncChunkedPolicyAdapter", "ACTPolicyAdapter"]

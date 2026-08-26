@@ -38,10 +38,21 @@ policy:
 
   # LeRobot 产物（含 model.safetensors）；state/action 维度分别与配置对齐。
   pretrained_path: /path/to/act/pretrained_model
+
+  # sync（默认）沿用 select_action()；async_chunked 在后台运行
+  # predict_action_chunk()，Dora tick 只做非阻塞 action 出队。
+  # inference_mode: sync
+  # 以下三项仅用于 async_chunked。
+  control_hz: 30
+  # 省略时使用 checkpoint 的 n_action_steps。
+  # actions_per_chunk: 100
+  chunk_size_threshold: 0.5
+
   # 启用前应在控制开始前完成首次 forward warmup。
   torch_compile: false
-  # null 使用标准 action chunk；设为 0.01 可启用 LeRobot temporal ensemble。
-  # 启用时 runner 会按 LeRobot 要求将有效 n_action_steps 设为 1。
+  # null 使用标准 action chunk；sync 下设为 0.01 可启用 LeRobot temporal ensemble。
+  # temporal ensemble 不与 async_chunked 组合；启用时 runner 会按 LeRobot 要求
+  # 将有效 n_action_steps 设为 1。
   temporal_ensemble_coeff: null
 
 # 左侧可使用任意 Dora input ID；右侧 alias 与 checkpoint 图像特征匹配。

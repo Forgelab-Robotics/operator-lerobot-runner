@@ -83,7 +83,7 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 
 | 配置 | backend |
 | --- | --- |
-| `config/inference/act.yaml` | ACT 标准 chunk，可选 temporal ensemble |
+| `config/inference/act.yaml` | ACT 同步或异步 action chunk；同步可选 temporal ensemble |
 | `config/inference/pi05.yaml` | PI0.5 同步 `select_action()` |
 | `config/inference/pi05_async_rtc.yaml` | PI0.5 异步 Real-Time Chunking |
 
@@ -107,6 +107,12 @@ dora run dataflow.yaml
 ```
 
 可参考 `examples/dora_infer_act_7d/` 和 `examples/dora_infer_act_14d/` 的完整 dataflow 与策略配置。
+
+ACT 默认 `inference_mode: sync`，保持 LeRobot `select_action()` 行为；设置
+`inference_mode: async_chunked` 后由后台线程运行 `predict_action_chunk()`，Dora tick
+只做非阻塞出队。队列到达低水位时会预取新 chunk，重叠 timestep 按 LeRobot
+async inference 默认权重合并；pause、stop 和 reset 会使在途旧 generation 失效。
+`temporal_ensemble_coeff` 仅用于 sync，不与 `async_chunked` 组合。
 
 Pi0.5 还需要本地 tokenizer 路径和语言指令：
 
