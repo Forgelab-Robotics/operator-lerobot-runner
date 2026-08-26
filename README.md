@@ -129,15 +129,25 @@ Pi0.5 提供两个显式 backend：默认 `inference_mode: sync` 使用 LeRobot 
 完整配置见 `examples/dora_sim_infer_pi05_7d_bin/`。
 
 Diffusion Policy 的观测历史（`n_obs_steps` 帧堆叠）与动作 chunk 由 LeRobot policy
-内部管理，adapter 每步转发当前观测即可，无自有队列。历史 checkpoint 的非标准图像
-特征键（如 pusht 的 `observation.image`）可在 policy 配置中显式声明：
+内部管理，adapter 每步转发当前观测即可，无自有队列。加载时，adapter 从 checkpoint
+配置读取图像、state/action 维度与时间参数，并用可选的 `expected_*` 字段校验部署契约。
+历史 checkpoint 的非标准图像特征键（如 pusht 的 `observation.image`）可显式声明：
 
 ```yaml
 policy:
   type: diffusion
-  pretrained_path: /path/to/pretrained_model
+  pretrained_path: ${DIFFUSION_POLICY_CHECKPOINT}
   expected_image_keys: [observation.image]
+  expected_n_obs_steps: 2
+  expected_horizon: 16
+  expected_n_action_steps: 8
+  instruction_conditioning: none
 ```
+
+`${DIFFUSION_POLICY_CHECKPOINT}` 在加载 YAML 时展开，变量未设置会直接报错；原有相对
+路径配置仍相对 YAML 所在目录解析。标准 LeRobot Diffusion Policy 不消费语言，
+`instruction_conditioning` 省略时默认 `none`，其他值会以明确错误拒绝。运行时收到的
+instruction 只被记录，不会送入模型。
 
 LingBot-VA 是纯视频-动作世界模型：checkpoint 只有相机输入、无 observation.state，
 动作维度由 `used_action_channel_ids` 决定（LIBERO 为 7）。推理需要冻结的

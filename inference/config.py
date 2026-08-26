@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,9 @@ from typing import Any
 import yaml
 
 from lerobot_inference.common.paths import resolve_user_path
+
+
+_UNEXPANDED_ENV = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\})")
 
 
 @dataclass(frozen=True)
@@ -134,13 +138,27 @@ class PolicyNodeConfig:
         base = p.parent
         policy = data.get("policy")
         if isinstance(policy, dict):
+            policy_type = str(policy.get("type", "")).strip().lower()
             for key in ("run_dir", "pretrained_path", "tokenizer_path", "ckpt_path"):
                 value = policy.get(key)
                 if not value:
                     continue
-                path_value = Path(str(value)).expanduser()
+                path_text = str(value)
+                # Keep every legacy policy/path behavior unchanged. Environment
+                # expansion is a deployment feature only for Diffusion checkpoints.
+                if policy_type == "diffusion" and key == "pretrained_path":
+                    path_text = os.path.expandvars(path_text)
+                    unresolved = _UNEXPANDED_ENV.findall(path_text)
+                    if unresolved:
+                        raise ValueError(
+                            "policy.pretrained_path references unset environment "
+                            f"variables: {unresolved}"
+                        )
+                path_value = Path(path_text).expanduser()
                 if not path_value.is_absolute():
                     policy[key] = str((base / path_value).resolve())
+                elif path_text != str(value):
+                    policy[key] = str(path_value)
         return cls.from_dict(data)
 
 

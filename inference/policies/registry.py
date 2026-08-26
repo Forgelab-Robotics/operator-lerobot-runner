@@ -348,9 +348,45 @@ def _diffusion_policy_config_overrides(
     return {key: policy_config[key] for key in runtime_keys if key in policy_config}
 
 
+def _diffusion_checkpoint_contract(policy_config: dict[str, Any]) -> dict[str, int]:
+    mapping = {
+        "expected_n_obs_steps": "n_obs_steps",
+        "expected_horizon": "horizon",
+        "expected_n_action_steps": "n_action_steps",
+    }
+    contract: dict[str, int] = {}
+    for config_key, checkpoint_key in mapping.items():
+        if config_key not in policy_config:
+            continue
+        raw = policy_config[config_key]
+        if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+            raise ValueError(f"policy.{config_key} must be a positive integer")
+        try:
+            value = int(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"policy.{config_key} must be a positive integer"
+            ) from exc
+        if value < 1 or (isinstance(raw, float) and not raw.is_integer()):
+            raise ValueError(f"policy.{config_key} must be a positive integer")
+        contract[checkpoint_key] = value
+    return contract
+
+
+def _diffusion_instruction_conditioning(policy_config: dict[str, Any]) -> str:
+    raw = policy_config.get("instruction_conditioning", "none")
+    if not isinstance(raw, str) or raw.strip().lower() != "none":
+        raise ValueError(
+            "policy.instruction_conditioning must be 'none' for standard "
+            "LeRobot DiffusionPolicy"
+        )
+    return "none"
+
+
 def _create_diffusion(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
     from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
 
+    instruction_conditioning = _diffusion_instruction_conditioning(policy_config)
     camera_aliases = list(policy_config.get("camera_names") or [])
     explicit_keys = policy_config.get("expected_image_keys")
     if explicit_keys is not None:
@@ -365,6 +401,9 @@ def _create_diffusion(policy_config: dict[str, Any], pretrained_path: str) -> Le
         expected_image_keys=expected,
         torch_compile=compile_enabled_from_policy_config(policy_config),
         policy_config_overrides=_diffusion_policy_config_overrides(policy_config),
+        instruction=str(policy_config.get("instruction", "")),
+        instruction_conditioning=instruction_conditioning,
+        expected_checkpoint_contract=_diffusion_checkpoint_contract(policy_config),
     )
     state_dim, action_dim = _act_runtime_dimensions(policy_config)
     if state_dim is not None and action_dim is not None:

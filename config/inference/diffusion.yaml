@@ -38,7 +38,8 @@ policy:
   policy_id: diffusion_example
 
   # LeRobot 产物（含 model.safetensors）；state/action 维度分别与配置对齐。
-  pretrained_path: /path/to/diffusion/pretrained_model
+  # 启动前设置 DIFFUSION_POLICY_CHECKPOINT；不在配置中写服务器绝对路径。
+  pretrained_path: ${DIFFUSION_POLICY_CHECKPOINT}
   # 启用前应在控制开始前完成首次 forward warmup。
   torch_compile: false
   # 可选：推理去噪步数；不配则用 checkpoint 的 num_inference_steps。
@@ -50,6 +51,12 @@ policy:
   # "observation.images.<alias>"；历史 checkpoint（如 pusht）用非标准命名
   # "observation.image" 时须在这里给出完整键。
   # expected_image_keys: [observation.image]
+  # 可选：声明部署期望；实际值始终从 checkpoint config 读取并比较。
+  # expected_n_obs_steps: 2
+  # expected_horizon: 16
+  # expected_n_action_steps: 8
+  # 标准 LeRobot DiffusionPolicy 不消费语言；省略时也默认为 none。
+  instruction_conditioning: none
 
 image_inputs:
   image/main: image
