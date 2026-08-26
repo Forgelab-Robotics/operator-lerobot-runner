@@ -24,6 +24,16 @@ uv run lerobot --help
 uv run pytest
 ```
 
+### Forge Tool endpoint development
+
+The LeRobot Session Endpoint imports the upstream `forge_tool` protocol at
+source level.  `forge-tool` is currently an internal package that is not
+available from the configured package index, so it is intentionally not
+vendored and is not bundled into the LeRobot wheel.  Development and tests
+must provide the Forge workspace package through its editable install or
+`PYTHONPATH`.  Once an official package/index is published, the dependency can
+be declared here without changing the endpoint protocol code.
+
 主命令为 `lerobot`，子命令：
 
 ```bash

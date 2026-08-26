@@ -25,6 +25,10 @@ dependencies = [
     "forge-msgs==1.0.0",
     "forge-common==1.0.0",
     "forge-policy==1.0.0",
+    # forge-tool is an internal unpublished protocol package.  It is supplied
+    # by the Forge workspace/editable install or PYTHONPATH in dev/test; keep
+    # it out of this wheel until an official package/index is available.
+    # "forge-tool[dora]>=0.1.0,<0.2",
     "dora-rs==0.4.1",
 ]
 
