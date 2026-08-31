@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 
 import numpy as np
@@ -50,12 +51,43 @@ def _build_joint_command(action_np, config) -> JointCommand:
     return JointCommand(name=names, position=position, velocity=velocity, effort=effort)
 
 
+def _run_session_endpoint(config, policy, policy_config) -> int:
+    from dora import Node
+
+    from lerobot_inference.inference.session_endpoint import LeRobotServeSessionEndpoint
+    from lerobot_inference.inference.session_runner import LeRobotSessionPolicyRunner
+
+    node = Node()
+    endpoint = LeRobotServeSessionEndpoint(
+        policy_id=str(policy_config.get("policy_id", "default")),
+    )
+    runner = LeRobotSessionPolicyRunner(
+        node,
+        policy=policy,
+        endpoint=endpoint,
+        joint_order=config.state_joint_order,
+        image_input_id_to_alias=config.image_input_id_to_alias,
+        build_action=lambda action_np: _build_joint_command(action_np, config),
+        policy_id=str(policy_config.get("policy_id", "default")),
+        alias_for_cameras=config.alias_for_cameras,
+        auto_start=bool(policy_config.get("auto_start", False)),
+        call_lifecycle_hooks=True,
+    )
+    return runner.run(node)
+
+
 def run_infer(args) -> int:
     """执行 Dora 在线推理；args 需含可选 config。"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
     config = load_config(config_path=getattr(args, "config", None))
     policy_config = config.runtime_policy_config()
     policy = _setup_policy(policy_config)
     try:
+        if config.mode == "session_endpoint":
+            return _run_session_endpoint(config, policy, policy_config)
         return run_dora_policy_node(
             policy,
             joint_order=config.state_joint_order,

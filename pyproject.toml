@@ -22,9 +22,10 @@ dependencies = [
     "packaging>=24.0",
     "tqdm>=4.65.0",
 
-    "forge-msgs",
-    "forge-common",
-    "forge-policy",
+    "forge-msgs==1.2.0",
+    "forge-common==1.0.1",
+    "forge-policy==1.0.1",
+    "forge-tool[dora]==1.0.0",
     "dora-rs==0.4.1",
 ]
 
@@ -43,11 +44,6 @@ lerobot = "lerobot_inference.cli:main"
 lerobot-infer-once = "lerobot_inference.cli:main_infer_once"
 lerobot-infer = "lerobot_inference.cli:main_infer"
 lerobot-convert = "lerobot_inference.cli:main_convert"
-
-[tool.uv.sources]
-forge-msgs = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git", rev = "dev", subdirectory = "packages/msgs" }
-forge-common = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git", rev = "dev", subdirectory = "packages/common" }
-forge-policy = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git", rev = "dev", subdirectory = "packages/policy" }
 
 [build-system]
 requires = ["hatchling"]

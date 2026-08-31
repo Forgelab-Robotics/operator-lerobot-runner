@@ -270,26 +270,52 @@ wheels = [
 
 [[package]]
 name = "forge-common"
-version = "1.0.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fcommon&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/4c/b12f4982c811596950830905c7d7fecd400b11aba3dc65017ed49df1f7e6/forge_common-1.0.1.tar.gz", hash = "sha256:dcf3483948e072cca5b41cc235de38686fe23a84040b5bf6e90e275c93c37255", size = 7459, upload-time = "2026-08-13T16:21:33.433Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/29/c5/0e3b01f2dcc3af01927f1f935a3488ce87c3c60ebdc25e71c8f705b7202e/forge_common-1.0.1-py3-none-any.whl", hash = "sha256:4d5e14a6f7c717f818241ca2abd2aa82dd77dca563d4446c8eb6d78a3e6bd4cb", size = 8822, upload-time = "2026-08-13T16:21:32.677Z" },
+]
 
 [[package]]
 name = "forge-msgs"
-version = "1.0.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fmsgs&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pyarrow" },
     { name = "pydantic" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/e4/11e742b243f74b2c1972ddd711151fc45624c4e2c232182ffc6d87a35f44/forge_msgs-1.2.0.tar.gz", hash = "sha256:76aad11eb0e8acdfd5a68b2bd0ca2bd37ca567959425130636493b1f2941c4aa", size = 34377, upload-time = "2026-08-24T04:14:03.324Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/a6/55549925ededf876258b8dc4434247d2af070da6302aad43382187653eb8/forge_msgs-1.2.0-py3-none-any.whl", hash = "sha256:211457c3545a215856c09a70c72df9cd2f5700ed3266a95ddf5006d829a528c6", size = 43891, upload-time = "2026-08-24T04:14:02.101Z" },
+]
 
 [[package]]
 name = "forge-policy"
-version = "1.0.0"
-source = { git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fpolicy&rev=dev#d38de50790ce400e2a86d2fb3e787c1e1f5eff0d" }
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dora-rs" },
+    { name = "forge-msgs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/24/ca7dc7fa19dfca9cb20a9e57ccb8cc01317b5b4cea81a72d6a8e113476eb/forge_policy-1.0.1.tar.gz", hash = "sha256:1460747a2678fb21e83b31da340aedb4cb1d46033291040e1818083b09620bac", size = 7991, upload-time = "2026-08-13T16:24:27.819Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/c6/966fa2755d94e9582c2e54140025490adbac7e50ebc65d2f6af5c02f868e/forge_policy-1.0.1-py3-none-any.whl", hash = "sha256:be56047517a1565950a35f640aa8157fd67b1595d2488bf2add2c10990b3a647", size = 10320, upload-time = "2026-08-13T16:24:27.085Z" },
+]
+
+[[package]]
+name = "forge-tool"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9e/2d/ea217bef7ec1995dad1ef9dceb511fe2a0b001f557c9da4b3c979aa07a36/forge_tool-1.0.0.tar.gz", hash = "sha256:ef9c66a8f6c5bb548778ef83a0d1bc559f23973e262110f22f412d2852378eac", size = 35333, upload-time = "2026-08-27T06:25:57.724Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/5c/1227f5fe0648d355fb480e555b8532857fb5fa69271ae3d4ee7d3d3a6828/forge_tool-1.0.0-py3-none-any.whl", hash = "sha256:7639e2425c5445159c4c46e01237864251991d285fea86ee0bde13cd8197bf02", size = 43682, upload-time = "2026-08-27T06:25:56.871Z" },
+]
+
+[package.optional-dependencies]
+dora = [
     { name = "forge-msgs" },
 ]
 
@@ -479,6 +505,7 @@ dependencies = [
     { name = "forge-common" },
     { name = "forge-msgs" },
     { name = "forge-policy" },
+    { name = "forge-tool", extra = ["dora"] },
     { name = "huggingface-hub" },
     { name = "lerobot", extra = ["pi", "smolvla", "vla-jepa"] },
     { name = "numpy" },
@@ -505,9 +532,10 @@ dev = [
 requires-dist = [
     { name = "dora-rs", specifier = "==0.4.1" },
     { name = "einops", specifier = ">=0.7.0" },
-    { name = "forge-common", git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fcommon&rev=dev" },
-    { name = "forge-msgs", git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fmsgs&rev=dev" },
-    { name = "forge-policy", git = "https://gitlab.ex-ai.cn/meta-emt/framework/forge.git?subdirectory=packages%2Fpolicy&rev=dev" },
+    { name = "forge-common", specifier = "==1.0.1" },
+    { name = "forge-msgs", specifier = "==1.2.0" },
+    { name = "forge-policy", specifier = "==1.0.1" },
+    { name = "forge-tool", extras = ["dora"], specifier = "==1.0.0" },
     { name = "huggingface-hub", specifier = ">=0.20.0" },
     { name = "lerobot", extras = ["pi", "smolvla", "vla-jepa"], specifier = "==0.6.1" },
     { name = "numpy", specifier = "==2.2.6" },
