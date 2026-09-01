@@ -1,0 +1,52 @@
+# SmolVLA（RoboCasa 12D）Dora 推理 dataflow。
+#
+# 拓扑（两节点，与 forge_runtime 的 benchmark 节点直连，无中间节点）：
+#   robocasa_benchmark → proprio_state / image×3 / policy_command → policy
+#   policy → action → robocasa_benchmark
+#
+# 注意：benchmark 与 policy **必须用不同的 conda 环境**。
+# RoboCasa 依赖 robosuite 1.5.2，而 LIBERO 依赖 1.4.0，两者互斥；
+# dora 支持每个节点指定各自的解释器，所以分环境不影响通信。
+#
+# 在本目录执行：dora run dataflow.yaml
+
+nodes:
+  # ---- RoboCasa benchmark 节点（forge_runtime）----
+  # 进程内持有 RoboCasa env，输出 16D proprio_state 与 3 路 256x256 图像，
+  # 消费 policy/action。逐 episode 从 env.get_ep_meta()["lang"] 下发真实指令。
+  - id: robocasa_benchmark
+    path: <ROBOCASA_ENV>/bin/python
+    args: -u <FORGE_RUNTIME>/packages/nodes/benchmarks/robocasa/main.py
+    env:
+      BENCHMARK_CONFIG: ./bench.yaml
+      MUJOCO_GL: egl
+      PYOPENGL_PLATFORM: egl
+    inputs:
+      action: policy/action
+    outputs:
+      - proprio_state
+      - image/main
+      - image/second
+      - image/third
+      - policy_command
+      - benchmark_status
+      - benchmark_result
+
+  - id: policy
+    path: ../../bin/lerobot_infer/lerobot_infer
+    args: infer --config ./policy_smolvla.yaml
+    inputs:
+      tick: dora/timer/millis/20
+      # 必须显式加深：episode 边界会连发 set_instruction + reset_scene，
+      # 默认队列深度会把前一条挤掉，表现为首个 episode 拿着上一句指令跑完
+      # ——照样出分，不报错。
+      policy_command:
+        source: robocasa_benchmark/policy_command
+        queue_size: 32
+      proprio_state: robocasa_benchmark/proprio_state
+      image/main: robocasa_benchmark/image/main
+      image/second: robocasa_benchmark/image/second
+      image/third: robocasa_benchmark/image/third
+    outputs:
+      - action
+      - policy_command_status

@@ -9,7 +9,7 @@ dependencies = [
     "torch",
     "torchvision",
 
-    "lerobot[pi,smolvla]==0.6.1",
+    "lerobot[pi,smolvla,vla-jepa]==0.6.1",
     "transformers>=5.4.0,<5.6.0",
 
     "numpy==2.2.6",
@@ -22,9 +22,10 @@ dependencies = [
     "packaging>=24.0",
     "tqdm>=4.65.0",
 
-    "forge-msgs==1.0.0",
-    "forge-common==1.0.0",
-    "forge-policy==1.0.0",
+    "forge-msgs==1.2.0",
+    "forge-common==1.0.1",
+    "forge-policy==1.0.1",
+    "forge-tool[dora]==1.0.0",
     "dora-rs==0.4.1",
 ]
 
@@ -43,11 +44,6 @@ lerobot = "lerobot_inference.cli:main"
 lerobot-infer-once = "lerobot_inference.cli:main_infer_once"
 lerobot-infer = "lerobot_inference.cli:main_infer"
 lerobot-convert = "lerobot_inference.cli:main_convert"
-
-[tool.uv.sources]
-forge-msgs = { git = "https://gitlab.ex-ai.cn/PhyAgentOS/framework/forge.git", tag = "forge-msgs-v1.0.0", subdirectory = "packages/msgs" }
-forge-common = { git = "https://gitlab.ex-ai.cn/PhyAgentOS/framework/forge.git", tag = "forge-common-v1.0.0", subdirectory = "packages/common" }
-forge-policy = { git = "https://gitlab.ex-ai.cn/PhyAgentOS/framework/forge.git", tag = "forge-policy-v1.0.0", subdirectory = "packages/policy" }
 
 [build-system]
 requires = ["hatchling"]

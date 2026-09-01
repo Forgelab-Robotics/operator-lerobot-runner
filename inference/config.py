@@ -30,6 +30,7 @@ class PolicyNodeConfig:
     auto_start: bool = False
     image_input_id_to_alias: dict[str, str] = field(default_factory=dict)
     state_joints: list[str] = field(default_factory=list)
+    mode: str = "dora_plain"
 
     @property
     def joint_order(self) -> list[str]:
@@ -129,12 +130,17 @@ class PolicyNodeConfig:
         if len(set(aliases)) != len(aliases):
             raise ValueError("image_inputs 的 alias 必须唯一，不能让多路输入覆盖同一相机")
 
+        mode = str(data.get("mode", "dora_plain")).strip()
+        if mode not in {"dora_plain", "session_endpoint"}:
+            raise ValueError("mode 必须为 dora_plain 或 session_endpoint")
+
         return cls(
             joints=joints,
             policy=policy,
             state_joints=state_joints,
             auto_start=_as_bool(policy.get("auto_start", data.get("auto_start", False))),
             image_input_id_to_alias=image_input_id_to_alias,
+            mode=mode,
         )
 
     @classmethod
@@ -149,13 +155,15 @@ class PolicyNodeConfig:
         base = p.parent
         policy = data.get("policy")
         if isinstance(policy, dict):
-            for key in ("run_dir", "pretrained_path", "tokenizer_path", "ckpt_path"):
+            for key in ("run_dir", "pretrained_path", "tokenizer_path", "ckpt_path", "wan_pretrained_path"):
                 value = policy.get(key)
                 if not value:
                     continue
-                path_value = Path(str(value)).expanduser()
+                path_value = Path(os.path.expandvars(str(value))).expanduser()
                 if not path_value.is_absolute():
                     policy[key] = str((base / path_value).resolve())
+                else:
+                    policy[key] = str(path_value)
         return cls.from_dict(data)
 
 

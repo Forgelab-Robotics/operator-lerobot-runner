@@ -1,0 +1,73 @@
+# LingBot-VA 推理配置模板
+#
+#   uv run lerobot infer-once --config config/inference/lingbot_va.yaml
+#   uv run lerobot infer --config config/inference/lingbot_va.yaml
+# Dora 完整样例可仿照 examples/dora_sim_infer_vla_jepa_8d_bin/，把 policy 节点换成：
+#   args: infer --config config/inference/lingbot_va.yaml
+
+joints:
+  # 动作关节（7 维）：LIBERO 为 7-DoF 臂，全部 position 模式，gripper 由
+  # joint7 驱动，没有独立的毫米动作维度。
+  - name: joint1
+    mode: position
+    unit: radians
+  - name: joint2
+    mode: position
+    unit: radians
+  - name: joint3
+    mode: position
+    unit: radians
+  - name: joint4
+    mode: position
+    unit: radians
+  - name: joint5
+    mode: position
+    unit: radians
+  - name: joint6
+    mode: position
+    unit: radians
+  - name: joint7
+    mode: position
+    unit: radians
+
+# LingBot-VA 是纯视频-动作模型：checkpoint 的输入只有相机图像，没有
+# observation.state。动作维度 = used_action_channel_ids 数量（LIBERO 为 7）。
+
+policy:
+  type: lingbot_va
+  auto_start: false
+  policy_id: lingbot_va_example
+
+  # LingBot-VA 是指令驱动的视频-动作世界模型：指令经冻结的 UMT5 编码为
+  # prompt，务必与训练时指令风格一致。运行时可通过 adapter.instruction 更新
+  # （更新会重置 KV cache 与动作队列）。
+  instruction: "Place the red cube on top of the green cube"
+
+  # 运行设备；可改为 cuda:0、其他 CUDA 设备或 cpu。
+  device: cuda
+
+  # LeRobot 产物（含 model.safetensors，只含 transformer 权重，~9.7GB）。
+  # 官方：https://huggingface.co/lerobot/lingbot_va_libero_long
+  pretrained_path: /path/to/lingbot_va/pretrained_model
+
+  # 冻结权重目录（Wan VAE + UMT5 + tokenizer，~13GB）：checkpoint 的
+  # wan_pretrained_path 指向 HF repo，离线部署应指到本地目录，须含
+  # vae/、text_encoder/、tokenizer/ 三个子目录。
+  # 官方：https://huggingface.co/robbyant/lingbot-va-base
+  # wan_pretrained_path: /mnt/SSD2_16TB/qinhan/paos_deps/models/lingbot_va_base_frozen
+  # UMT5 文本编码器（~11GB）所在设备；默认 CPU，每 episode 只编码一次。
+  # text_encoder_device: cpu
+
+  # 可选推理参数（不配则用 checkpoint 默认值）。
+  # num_inference_steps: 20
+  # action_num_inference_steps: 50
+  # guidance_scale: 5.0
+  # action_guidance_scale: 1.0
+
+image_inputs:
+  # 官方 lerobot/lingbot_va_libero_long checkpoint 的 obs_cam_keys 是
+  # observation.images.image + observation.images.image2（LIBERO 2 相机）。
+  # 别名（: 后面的值）必须等于 checkpoint 特征键去掉 "observation.images."
+  # 前缀后的名字，否则 from_pretrained 的相机校验会报错。
+  image/main: image
+  image/second: image2

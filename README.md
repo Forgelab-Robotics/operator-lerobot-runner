@@ -42,7 +42,7 @@ uv run lerobot infer-once --help
 ├── common/                # checkpoint 与预训练资产共用逻辑
 ├── convert/               # policy_train ACT → LeRobot checkpoint
 ├── inference/             # Dora 与单次推理实现
-│   └── policies/          # ACT、Pi0.5 策略适配器
+│   └── policies/          # ACT、Pi0.5、Diffusion、LingBot-VA 策略适配器
 ├── config/                # 按策略拆分的转换与推理配置模板
 ├── examples/              # 转换、7D 与 14D Dora 示例
 ├── scripts/               # 安装、测试、打包辅助脚本
@@ -86,6 +86,8 @@ YAML 中的相对路径相对于 YAML 文件所在目录。转换输出目录可
 | `config/inference/act.yaml` | ACT 同步或异步 action chunk；同步可选 temporal ensemble |
 | `config/inference/pi05.yaml` | PI0.5 同步 `select_action()` |
 | `config/inference/pi05_async_rtc.yaml` | PI0.5 异步 Real-Time Chunking |
+| `config/inference/diffusion.yaml` | Diffusion Policy（观测历史与动作 chunk 由 policy 内部管理） |
+| `config/inference/lingbot_va.yaml` | LingBot-VA 视频-动作世界模型（chunk + KV cache 由 policy 内部管理） |
 
 完整说明见 `config/inference/README.md`。
 
@@ -131,6 +133,48 @@ Pi0.5 提供两个显式 backend：默认 `inference_mode: sync` 使用 LeRobot 
 切换 instruction、pause、stop 或 reset 时会丢弃旧 chunk。加载过程保持 pretrained
 目录只读，并在权重损坏或与 config 不兼容时直接失败，不会回退到随机初始化模型。
 完整配置见 `examples/dora_sim_infer_pi05_7d_bin/`。
+
+Diffusion Policy 的观测历史（`n_obs_steps` 帧堆叠）与动作 chunk 由 LeRobot policy
+内部管理，adapter 每步转发当前观测即可，无自有队列。历史 checkpoint 的非标准图像
+特征键（如 pusht 的 `observation.image`）可在 policy 配置中显式声明：
+
+```yaml
+policy:
+  type: diffusion
+  pretrained_path: /path/to/pretrained_model
+  expected_image_keys: [observation.image]
+```
+
+LingBot-VA 是纯视频-动作世界模型：checkpoint 只有相机输入、无 observation.state，
+动作维度由 `used_action_channel_ids` 决定（LIBERO 为 7）。推理需要冻结的
+Wan VAE + UMT5 权重（`vae/`、`text_encoder/`、`tokenizer/` 子目录），离线部署把
+`wan_pretrained_path` 指向本地目录；UMT5 默认跑在 CPU（每 episode 只编码一次指令）：
+
+```yaml
+policy:
+  type: lingbot_va
+  pretrained_path: /path/to/lingbot_va/pretrained_model
+  wan_pretrained_path: /path/to/lingbot_va_base_frozen
+  text_encoder_device: cpu
+  instruction: pick up the black bowl and place it on the plate
+```
+
+## 模型来源
+
+各策略可用的 checkpoint 与附属组件来源如下（离线部署须先本地化下载并固定
+revision，`huggingface-cli download <repo> --revision <hash>` 可确定具体版本）：
+
+| 策略 | checkpoint 来源 | 附属组件 | 许可证 |
+| --- | --- | --- | --- |
+| ACT | 内部训练产物，经 `convert` 转换为 LeRobot 格式（见上文"转换 ACT 权重"） | 无 | — |
+| Pi0.5 | 内部 pi05 训练产物（`lerobot_trainer`），`pretrained_path` 指向本地目录 | PALIGEMMA tokenizer（本地化） | — |
+| Diffusion | 官方 LeRobot Hub 系列，如 `lerobot/diffusion_pusht`、`lerobot/diffusion_policy_simultaneous_*` | 无 | Apache-2.0 |
+| LingBot-VA | 官方 `lerobot/lingbot_va_libero_long` | 冻结 Wan VAE + UMT5：`robbyant/lingbot-va-base`（含 `vae/`、`text_encoder/`、`tokenizer/` 子目录） | 见各 HF 仓库 |
+| VLA-JEPA | 官方 `lerobot/VLA-JEPA-LIBERO` | Qwen3-VL 骨干 `Qwen/Qwen3-VL-2B-Instruct`；V-JEPA2 编码器 `facebook/vjepa2-vitl-fpc64-256`（推理可跳过） | Apache-2.0 / MIT |
+
+> 除标注"内部"的 ACT / Pi0.5 外，其余策略均直接加载 LeRobot 官方 Hub 发布的
+> checkpoint；运行时按需下载或在配置中指向本地目录。VLA-JEPA 的完整来源与
+> 固定 revision 记录见 `examples/dora_sim_infer_vla_jepa_8d_bin/README.md`。
 
 ## 打包
 

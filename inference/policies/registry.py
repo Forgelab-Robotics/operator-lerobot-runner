@@ -13,10 +13,14 @@ from lerobot_inference.inference.policies.act import (
     ACTPolicyAdapter,
 )
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
+from lerobot_inference.inference.policies.diffusion import DiffusionPolicyAdapter
+from lerobot_inference.inference.policies.lingbot_va import LingBotVAAdapter
+from lerobot_inference.inference.policies.smolvla import SmolVLAAdapter
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
     PI05PolicyAdapter,
 )
+from lerobot_inference.inference.policies.vla_jepa import VLAJEPAAdapter
 
 PolicyFactory = Callable[[dict[str, Any], str], LerobotPolicyAdapter]
 
@@ -35,6 +39,11 @@ _POLICY_ALIASES: dict[str, str] = {
     "diffusion": "diffusion",
     "vqbet": "vqbet",
     "tdmpc": "tdmpc",
+    "vla_jepa": "vla_jepa",
+    "vla-jepa": "vla_jepa",
+    "lingbot_va": "lingbot_va",
+    "lingbot-va": "lingbot_va",
+    "LingBotVA": "lingbot_va",
 }
 
 # Implemented adapters keyed by normalized LeRobot policy type.
@@ -45,8 +54,6 @@ _PLANNED_LEROBOT_TYPES = frozenset(
     {
         "pi0",
         "pi0_fast",
-        "smolvla",
-        "diffusion",
         "vqbet",
         "tdmpc",
         "xvla",
@@ -279,6 +286,162 @@ def _create_pi05(policy_config: dict[str, Any], pretrained_path: str) -> Lerobot
 
 
 register_policy_type("pi05", _create_pi05)
+
+
+def _vla_jepa_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # VLA-JEPA 推理只走 Qwen 骨干 + DiT 动作头。enable_world_model=true 会在
+    # 模型初始化时额外加载 V-JEPA2 编码器（纯训练用，推理不需要）；允许运行时
+    # 关闭以省显存和加载时间，其余键原样透传给 checkpoint 配置。
+    runtime_keys = (
+        "qwen_model_name",
+        "jepa_encoder_name",
+        "enable_world_model",
+        "n_action_steps",
+        "num_inference_timesteps",
+    )
+    return {key: policy_config[key] for key in runtime_keys if key in policy_config}
+
+
+def _create_vla_jepa(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    adapter = VLAJEPAAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        instruction=str(policy_config.get("instruction", "")),
+        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
+        policy_config_overrides=_vla_jepa_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("vla_jepa", _create_vla_jepa)
+
+
+def _smolvla_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # SmolVLA 的视觉语言骨干按名字拉取（默认 HuggingFaceTB/SmolVLM2-*）。
+    # 离线部署把 vlm_model_name 指到本地目录，否则加载时会访问 HF Hub。
+    runtime_keys = (
+        "vlm_model_name",
+        "n_action_steps",
+        "chunk_size",
+        "num_steps",
+        "resize_imgs_with_padding",
+    )
+    return {key: policy_config[key] for key in runtime_keys if key in policy_config}
+
+
+def _create_smolvla(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    adapter = SmolVLAAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        instruction=str(policy_config.get("instruction", "")),
+        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
+        policy_config_overrides=_smolvla_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("smolvla", _create_smolvla)
+
+
+def _diffusion_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # 推理相关键透传给 checkpoint 配置；Diffusion 的观测历史（n_obs_steps）
+    # 与动作队列由 policy 内部管理，无需在 runner 侧处理。
+    runtime_keys = (
+        "n_obs_steps",
+        "n_action_steps",
+        "num_inference_steps",
+        "compile_model",
+        "compile_mode",
+    )
+    return {key: policy_config[key] for key in runtime_keys if key in policy_config}
+
+
+def _create_diffusion(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
+
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    explicit_keys = policy_config.get("expected_image_keys")
+    if explicit_keys is not None:
+        # 显式给出 checkpoint 的真实图像特征键（兼容历史 checkpoint 的
+        # 非标准命名，如 pusht 的 "observation.image"），不再从 image_inputs 派生。
+        expected = {str(key) for key in explicit_keys}
+    else:
+        expected = _expected_image_keys(policy_config, camera_aliases)
+    adapter = DiffusionPolicyAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        expected_image_keys=expected,
+        torch_compile=compile_enabled_from_policy_config(policy_config),
+        policy_config_overrides=_diffusion_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("diffusion", _create_diffusion)
+
+
+def _lingbot_va_policy_config_overrides(
+    policy_config: dict[str, Any],
+) -> dict[str, Any]:
+    # LingBot-VA 推理参数与 frozen 权重路径可运行时覆盖；obs_cam_keys 由
+    # image_inputs 派生（含前缀），与 checkpoint 的相机特征保持一致。
+    runtime_keys = (
+        "height",
+        "width",
+        "n_obs_steps",
+        "num_inference_steps",
+        "action_num_inference_steps",
+        "guidance_scale",
+        "action_guidance_scale",
+        "used_action_channel_ids",
+        "wan_pretrained_path",
+        "text_encoder_device",
+        "dtype",
+        "save_predicted_video",
+    )
+    overrides = {key: policy_config[key] for key in runtime_keys if key in policy_config}
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    if camera_aliases:
+        # 与 checkpoint 的 obs_cam_keys 完全一致（"observation.images.<alias>"）。
+        overrides["obs_cam_keys"] = [
+            f"observation.images.{alias}" for alias in camera_aliases
+        ]
+    return overrides
+
+
+def _create_lingbot_va(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
+    camera_aliases = list(policy_config.get("camera_names") or [])
+    adapter = LingBotVAAdapter.from_pretrained(
+        pretrained_path,
+        device=policy_config.get("device"),
+        instruction=str(policy_config.get("instruction", "")),
+        expected_image_keys=_expected_image_keys(policy_config, camera_aliases),
+        policy_config_overrides=_lingbot_va_policy_config_overrides(policy_config),
+    )
+    state_dim, action_dim = _act_runtime_dimensions(policy_config)
+    if state_dim is not None and action_dim is not None:
+        adapter.validate_io_dimensions(state_dim, action_dim)
+    return adapter
+
+
+register_policy_type("lingbot_va", _create_lingbot_va)
 
 
 def resolve_policy_pretrained_path(policy_config: dict[str, Any]) -> str:

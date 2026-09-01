@@ -43,6 +43,7 @@ hiddenimports += collect_submodules("lerobot_inference")
 hiddenimports += collect_submodules("forge_msgs")
 hiddenimports += collect_submodules("forge_common")
 hiddenimports += collect_submodules("forge_policy")
+hiddenimports += collect_submodules("forge_tool")
 hiddenimports += [
     "lerobot_inference.cli",
     "lerobot_inference.convert.cli",
