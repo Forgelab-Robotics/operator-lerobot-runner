@@ -56,7 +56,7 @@ jobs:
       - name: Verify and package binary
         run: |
           test "${{ inputs.ref }}" = "v${RELEASE_VERSION}"
-          test "$(./dist/lerobot_infer/lerobot_infer --version)" = "lerobot_infer ${RELEASE_VERSION}"
+          test "$(./dist/lerobot_infer/lerobot_infer --version)" = "lerobot ${RELEASE_VERSION}"
           ./dist/lerobot_infer/lerobot_infer --help >/dev/null
           file ./dist/lerobot_infer/lerobot_infer
           ldd --version | sed -n '1p'
