@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 
 import pytest
-
 from lerobot_inference import __version__
 from lerobot_inference.cli import _normalize_argv, main
 

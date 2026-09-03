@@ -4,7 +4,6 @@ import asyncio
 
 import pytest
 from forge_tool import ToolContext, ToolExecutionKey, ToolRequest
-
 from lerobot_inference.inference.config import PolicyNodeConfig
 from lerobot_inference.inference.session_endpoint import (
     DESCRIPTOR,

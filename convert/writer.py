@@ -11,11 +11,13 @@ from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.policies.act.configuration_act import ACTConfig
 from lerobot.policies.act.modeling_act import ACTPolicy
 from lerobot.policies.factory import make_pre_post_processors
-from safetensors.torch import load_file
-
 from lerobot_inference.convert.meta import PolicyTrainMeta
 from lerobot_inference.convert.stats_converter import pkl_to_lerobot_stats
-from lerobot_inference.convert.weight_mapper import map_policy_train_state_dict, shape_match_report
+from lerobot_inference.convert.weight_mapper import (
+    map_policy_train_state_dict,
+    shape_match_report,
+)
+from safetensors.torch import load_file
 
 
 def load_source_state_dict(path: Path) -> dict[str, torch.Tensor]:

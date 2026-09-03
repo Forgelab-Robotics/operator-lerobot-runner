@@ -36,8 +36,7 @@ def _resolve_checkpoint_alias(run_dir: Path, checkpoint: str) -> Path:
         if alias.name == MODEL_WEIGHTS_NAME:
             return alias.parent
         if alias.suffix == ".pt":
-            target = alias.resolve()
-            return target.parent if target.name == MODEL_WEIGHTS_NAME else target.parent
+            return alias.resolve().parent
     raise FileNotFoundError(f"Checkpoint alias not found under {ckpt_root}: {checkpoint}")
 
 

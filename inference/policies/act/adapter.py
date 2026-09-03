@@ -15,7 +15,6 @@ import torch
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.utils import prepare_observation_for_inference
 from lerobot.processor import PolicyProcessorPipeline
-
 from lerobot_inference.inference.compile_utils import maybe_compile_policy
 from lerobot_inference.inference.observation import action_tensor_to_numpy
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter

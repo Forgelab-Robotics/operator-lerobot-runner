@@ -4,11 +4,10 @@ import time
 from threading import Event, Thread
 from types import SimpleNamespace
 
+import lerobot_inference.inference.policies.act.adapter as act_adapter_module
 import numpy as np
 import pytest
 import torch
-
-import lerobot_inference.inference.policies.act.adapter as act_adapter_module
 from lerobot_inference.inference.config import JointConfig, PolicyNodeConfig
 from lerobot_inference.inference.main import _build_joint_command
 from lerobot_inference.inference.policies import loader, registry

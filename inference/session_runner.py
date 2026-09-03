@@ -11,14 +11,17 @@ from typing import Any
 
 import pyarrow as pa
 from forge_msgs import PolicyCommand, ToolMessage
-from forge_policy import PolicyRuntimeState, apply_policy_command, build_policy_observation
+from forge_policy import (
+    PolicyRuntimeState,
+    apply_policy_command,
+    build_policy_observation,
+)
 from forge_tool import ToolEndpointHandler, ToolEnvelope
 from forge_tool.dora import (
     DoraToolEndpointBinding,
     tool_envelope_to_message,
     tool_message_to_envelope,
 )
-
 from lerobot_inference.inference.endpoint_lease import EndpointLease
 from lerobot_inference.inference.session_endpoint import (
     DESCRIPTOR,

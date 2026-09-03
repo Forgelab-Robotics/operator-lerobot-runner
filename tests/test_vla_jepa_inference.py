@@ -5,12 +5,11 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
-
-from lerobot_inference.inference.policies.vla_jepa import VLAJEPAAdapter
 from lerobot_inference.inference.policies.registry import (
     _create_vla_jepa,
     _vla_jepa_policy_config_overrides,
 )
+from lerobot_inference.inference.policies.vla_jepa import VLAJEPAAdapter
 
 
 class FakeProcessor:

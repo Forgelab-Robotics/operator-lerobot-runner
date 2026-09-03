@@ -18,7 +18,6 @@ from lerobot.policies.rtc import (
     reanchor_relative_rtc_prefix,
 )
 from lerobot.processor import NormalizerProcessorStep, RelativeActionsProcessorStep
-
 from lerobot_inference.inference.observation import action_tensor_to_numpy
 
 from .sync import PI05PolicyAdapter

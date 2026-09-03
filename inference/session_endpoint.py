@@ -9,7 +9,7 @@ only owns the longer-lived policy service lease.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -144,7 +144,7 @@ class LeRobotServeSessionEndpoint:
         try:
             if self._stop_hook is not None:
                 self._stop_hook()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - stop-hook error boundary
             execution.phase = "failed"
             execution.result = ToolResult(
                 status="failed",
@@ -233,4 +233,4 @@ class LeRobotServeSessionEndpoint:
         return details
 
 
-__all__ = ["DESCRIPTOR", "ENDPOINT_ID", "LeRobotServeSessionEndpoint", "OPERATION"]
+__all__ = ["DESCRIPTOR", "ENDPOINT_ID", "OPERATION", "LeRobotServeSessionEndpoint"]

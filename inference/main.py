@@ -12,7 +12,6 @@ import sys
 import numpy as np
 from forge_msgs import JointCommand
 from forge_policy import run_dora_policy_node
-
 from lerobot_inference.inference.config import load_config
 from lerobot_inference.inference.policies.registry import create_policy_adapter
 
@@ -55,7 +54,6 @@ def _run_session_endpoint(
     config, policy, policy_config, image_input_id_to_alias, alias_for_cameras
 ) -> int:
     from dora import Node
-
     from lerobot_inference.inference.session_endpoint import LeRobotServeSessionEndpoint
     from lerobot_inference.inference.session_runner import LeRobotSessionPolicyRunner
 

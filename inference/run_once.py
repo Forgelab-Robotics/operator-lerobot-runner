@@ -8,7 +8,6 @@ import sys
 import time
 
 import numpy as np
-
 from lerobot_inference.inference.config import load_config
 from lerobot_inference.inference.policies.registry import create_policy_adapter
 

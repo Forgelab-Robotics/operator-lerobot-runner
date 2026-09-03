@@ -8,7 +8,6 @@ from pathlib import Path
 
 from lerobot_inference import __version__
 
-
 _COMMANDS = ("convert", "infer", "infer-once")
 
 _PROG_ALIASES = {

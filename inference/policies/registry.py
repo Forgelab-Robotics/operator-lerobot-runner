@@ -15,11 +15,11 @@ from lerobot_inference.inference.policies.act import (
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.diffusion import DiffusionPolicyAdapter
 from lerobot_inference.inference.policies.lingbot_va import LingBotVAAdapter
-from lerobot_inference.inference.policies.smolvla import SmolVLAAdapter
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,
     PI05PolicyAdapter,
 )
+from lerobot_inference.inference.policies.smolvla import SmolVLAAdapter
 from lerobot_inference.inference.policies.vla_jepa import VLAJEPAAdapter
 
 PolicyFactory = Callable[[dict[str, Any], str], LerobotPolicyAdapter]
@@ -139,7 +139,9 @@ def _act_policy_config_overrides(policy_config: dict[str, Any]) -> dict[str, Any
 
 
 def _create_act(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
-    from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
+    from lerobot_inference.inference.compile_utils import (
+        compile_enabled_from_policy_config,
+    )
 
     mode = str(policy_config.get("inference_mode", "sync")).strip().lower()
     if mode not in {"sync", "async_chunked"}:
@@ -371,7 +373,9 @@ def _diffusion_policy_config_overrides(
 
 
 def _create_diffusion(policy_config: dict[str, Any], pretrained_path: str) -> LerobotPolicyAdapter:
-    from lerobot_inference.inference.compile_utils import compile_enabled_from_policy_config
+    from lerobot_inference.inference.compile_utils import (
+        compile_enabled_from_policy_config,
+    )
 
     camera_aliases = list(policy_config.get("camera_names") or [])
     explicit_keys = policy_config.get("expected_image_keys")

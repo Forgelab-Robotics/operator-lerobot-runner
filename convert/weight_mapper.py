@@ -7,7 +7,6 @@ from typing import Any
 
 import torch
 
-
 DIRECT_KEY_MAP: dict[str, str] = {
     "action_head.weight": "model.action_head.weight",
     "action_head.bias": "model.action_head.bias",

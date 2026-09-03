@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 import torch
-
 from lerobot_inference.convert.scanner import discover_convert_jobs
 from lerobot_inference.convert.writer import load_source_state_dict
 

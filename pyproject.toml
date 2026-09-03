@@ -3,6 +3,8 @@ name = "lerobot-inference"
 version = "1.0.5"
 description = "Standalone inference and policy_train conversion for lerobot_trainer artifacts"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # 默认 PyPI 索引提供当前稳定 CUDA 13 构建；具体版本由 uv.lock 唯一固定。
@@ -62,6 +64,15 @@ only-packages = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# TRY004: config validation deliberately raises ValueError for end users.
+# BLE001: deliberate blind-exception boundaries carry inline noqa comments
+# with justification at each site.
+ignore = ["TRY004"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

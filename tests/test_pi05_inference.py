@@ -14,7 +14,6 @@ import pytest
 import torch
 from lerobot.policies.rtc import RTCConfig
 from lerobot.processor import RelativeActionsProcessorStep
-
 from lerobot_inference.inference.policies import registry
 from lerobot_inference.inference.policies.pi05 import (
     PI05AsyncRTCPolicyAdapter,

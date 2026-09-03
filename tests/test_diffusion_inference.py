@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
-
 from lerobot_inference.inference.policies.diffusion import DiffusionPolicyAdapter
 from lerobot_inference.inference.policies.registry import (
     _create_diffusion,

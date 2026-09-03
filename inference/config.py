@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from lerobot_inference.common.paths import resolve_user_path
 
 

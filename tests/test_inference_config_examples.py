@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from lerobot_inference.inference.config import PolicyNodeConfig
 from lerobot_inference.inference.policies.registry import (
     normalize_policy_type,

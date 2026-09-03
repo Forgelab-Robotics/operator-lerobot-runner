@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -21,7 +19,7 @@ def pkl_to_lerobot_stats(
     action_mean = np.asarray(stats["action_mean"], dtype=np.float32).reshape(-1)
     action_std = np.asarray(stats["action_std"], dtype=np.float32).reshape(-1)
 
-    channels, height, width = image_shape
+    _, height, width = image_shape
     mean_hwc = np.tile(IMAGENET_MEAN.reshape(1, 1, 3), (height, width, 1))
     std_hwc = np.tile(IMAGENET_STD.reshape(1, 1, 3), (height, width, 1))
     mean_chw = np.ascontiguousarray(mean_hwc.transpose(2, 0, 1))

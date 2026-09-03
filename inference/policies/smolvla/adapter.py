@@ -10,7 +10,6 @@ import torch
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.utils import prepare_observation_for_inference
 from lerobot.processor import PolicyProcessorPipeline
-
 from lerobot_inference.inference.observation import action_tensor_to_numpy
 from lerobot_inference.inference.policies.base import LerobotPolicyAdapter
 from lerobot_inference.inference.policies.loader import load_policy_bundle
@@ -108,7 +107,8 @@ class SmolVLAAdapter(LerobotPolicyAdapter):
                     for key in ("mean", "min", "max", "std"):
                         value = entry.get(key)
                         if value is not None:
-                            return int(np.asarray(getattr(value, "cpu", lambda: value)()).reshape(-1).shape[0])
+                            tensor = value.cpu() if hasattr(value, "cpu") else value
+                            return int(np.asarray(tensor).reshape(-1).shape[0])
         feature = self._policy.config.input_features.get("observation.state")
         return int(feature.shape[0]) if feature is not None else None
 
