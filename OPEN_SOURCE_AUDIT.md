@@ -30,8 +30,7 @@ as documented in `THIRD_PARTY_NOTICES.md`.
 - `detect-secrets` reports zero findings in the publishable source tree.
 - A `detect-secrets` scan across every historical Git blob (348 blobs,
   all objects in the repository) reports zero findings.
-- Private repository URLs and machine-specific paths
-  (`gitlab.ex-ai.cn`, `meta-emt`, `/home/`, `/Users/`) are absent from the
+- Private repository URLs and machine-specific paths are absent from the
   current publishable tree.
 - No file approaches GitHub's 100 MiB hard limit; the largest tracked file
   is `uv.lock` at 89,845 bytes (~88 KiB).
