@@ -190,6 +190,31 @@ dist/lerobot_infer/lerobot_infer infer --config /path/to/policy_act.yaml
 
 构建缓存和产物均被 Git 忽略；需要重新打包时可执行 `bash scripts/build.sh --clean`。
 
+### 单文件节点构建（可选）
+
+以 Forge/PAOS `executable_tar_gz` 契约安装节点时，归档根目录必须只包含一个可执行文件，
+且文件名与节点锁的 `entrypoint` 一致（`lerobot_infer`）。默认 onedir 产物是目录，不满足该契约；
+需要按节点方式发布时使用独立脚本构建单文件变体，onedir 流程保持不变：
+
+```bash
+bash scripts/setup.sh                 # 首次准备 uv 环境
+bash scripts/build_node_onefile.sh    # 产物：dist/onefile/lerobot_infer
+```
+
+打包为节点归档（`tar -tzf` 只应输出一行 `lerobot_infer`）：
+
+```bash
+tar -czf lerobot_infer-<version>-linux-x86_64.tar.gz -C dist/onefile lerobot_infer
+```
+
+说明：
+
+- 构建依赖与 onedir 相同：`uv sync --extra build`（或 `scripts/build.sh` 自动安装的 `pyinstaller>=6.0.0`）；
+- 构建解释器默认为仓库内 `.venv/bin/python`，可用 `PYTHON=/path/to/python` 覆盖，不自动回退到系统 Python；
+- onefile 变体使用 `dist/onefile/` 与 `build/pyinstaller/lerobot_infer_node/`，与 onedir 产物互不覆盖；
+- 单文件启动时需要解包，启动耗时和归档体积都高于 onedir，仅建议用于节点交付场景；
+- CI 默认仍只构建 onedir 资产，onefile 为可选构建方式。
+
 ## License
 
 本项目采用 [Apache License 2.0](LICENSE)。第三方运行时与构建期依赖的许可证见
