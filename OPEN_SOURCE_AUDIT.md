@@ -24,7 +24,7 @@ as documented in `THIRD_PARTY_NOTICES.md`.
   comments with justification.
 - CLI verifies: `--help` succeeds and `--version` reports `lerobot 1.0.5`.
 - `pip-audit` on the locked runtime export reports no actionable findings:
-  4 findings are accepted as documented known limitations (below) and are
+  5 findings are accepted as documented known limitations (below) and are
   ignored by ID in the CI dependency-audit job, so any new vulnerability
   still fails CI.
 - `detect-secrets` reports zero findings in the publishable source tree.
@@ -77,6 +77,15 @@ as documented in `THIRD_PARTY_NOTICES.md`.
   `setuptools<82.0.0`. The project publishes no source distribution and
   releases only on Linux x86_64; the exposure is not applicable to this
   release.
+- `accelerate 1.14.0` is affected by CVE-2026-69112 (path traversal and
+  denial of service via a malicious `weight_map` during checkpoint
+  loading). No fixed release exists yet — the upstream fix is an
+  unreleased commit and 1.14.0 is the latest PyPI version — so an upgrade
+  is not possible. The runner loads only publisher-provided policy
+  checkpoints from local paths and never consumes untrusted Hub-hosted
+  weight maps, so the exposure is not applicable to this deployment.
+  Remove this ignore once a fixed accelerate release is available and
+  `uv lock --upgrade-package accelerate` succeeds.
 - CI and this audit do not command physical hardware. Runtime deployment is
   only supported on trusted networks; Dora dataflows must not be exposed
   directly to the public internet (see `SECURITY.md`).
