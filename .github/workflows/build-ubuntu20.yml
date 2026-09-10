@@ -81,6 +81,17 @@ jobs:
           sha256sum "${archive}" > "${archive}.sha256"
           tar -tzf "${archive}" | grep -qx "lerobot_infer/lerobot_infer"
           sha256sum --check "${archive}.sha256"
+          # PAOS directory_tar_gz contract: the archive root must be exactly
+          # one directory named after the node entrypoint, holding the
+          # same-named executable plus its runtime tree. All symbolic links
+          # must stay relative and resolve inside the tree.
+          test "$(tar -tzf "${archive}" | awk -F/ '{print $1}' | sort -u)" = "lerobot_infer"
+          bad_links="$(find dist/lerobot_infer -type l \
+            \( -lname '/*' -o -lname '*..*' \) -print -quit)"
+          test -z "${bad_links}" || { echo "unsafe symlink: ${bad_links}" >&2; exit 1; }
+          dangling="$(find dist/lerobot_infer -xtype l -print -quit)"
+          test -z "${dangling}" || { echo "dangling symlink: ${dangling}" >&2; exit 1; }
+          test "$(find dist/lerobot_infer -type f -links +1 | wc -l)" = "0"
 
       - name: Build onefile Forge node (optional)
         if: ${{ inputs.build_node }}
