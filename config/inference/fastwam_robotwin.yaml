@@ -1,0 +1,71 @@
+# FastWAM RoboTwin 三相机组合图像、14D 单次推理配置。
+#
+#   HF_HUB_OFFLINE=1 uv run lerobot infer-once \
+#     --config config/inference/fastwam_robotwin.yaml --height 384 --width 320
+#
+# checkpoint 将三路相机预先组合为一个 observation.images.image feature，尺寸为
+# (3, 384, 320)。Runner 因此只接收一路已经按训练方式组合好的 HWC RGB 图像，
+# 不负责猜测三路原始相机的排列、裁剪或拼接方式。
+#
+# state/action 名称仅用于单次推理冒烟。接入 PaOS 或 RoboTwin 控制链路前，必须按
+# 训练数据确认并替换名称、语义、单位与顺序。
+
+joints:
+  - { name: action_0, mode: position, unit: normalized }
+  - { name: action_1, mode: position, unit: normalized }
+  - { name: action_2, mode: position, unit: normalized }
+  - { name: action_3, mode: position, unit: normalized }
+  - { name: action_4, mode: position, unit: normalized }
+  - { name: action_5, mode: position, unit: normalized }
+  - { name: action_6, mode: position, unit: normalized }
+  - { name: action_7, mode: position, unit: normalized }
+  - { name: action_8, mode: position, unit: normalized }
+  - { name: action_9, mode: position, unit: normalized }
+  - { name: action_10, mode: position, unit: normalized }
+  - { name: action_11, mode: position, unit: normalized }
+  - { name: action_12, mode: position, unit: normalized }
+  - { name: action_13, mode: position, unit: normalized }
+
+state_joints:
+  - state_0
+  - state_1
+  - state_2
+  - state_3
+  - state_4
+  - state_5
+  - state_6
+  - state_7
+  - state_8
+  - state_9
+  - state_10
+  - state_11
+  - state_12
+  - state_13
+
+policy:
+  type: fastwam
+  auto_start: false
+  policy_id: fastwam_robotwin_once
+
+  pretrained_path: ../../checkpoints/fastwam_robotwin_uncond_3cam_384
+  wan_diffusers_path: ../../checkpoints/huggingface/hub/models--Wan-AI--Wan2.2-TI2V-5B-Diffusers/snapshots/b8fff7315c768468a5333511427288870b2e9635
+  tokenizer_path: ../../checkpoints/fastwam_runtime/google/umt5-xxl
+
+  # 应替换为当前 RoboTwin task 在训练数据中的原始文本。
+  instruction: complete the manipulation task
+
+  device: cuda:0
+  torch_dtype: bfloat16
+  use_amp: false
+  n_action_steps: 10
+  num_inference_steps: 10
+  inference_seed: 42
+  rand_device: cpu
+  text_cfg_scale: 1.0
+  negative_prompt: ""
+  sigma_shift: null
+  tiled: false
+
+# alias 必须匹配 checkpoint 唯一的 observation.images.image feature。
+image_inputs:
+  image/combined: image

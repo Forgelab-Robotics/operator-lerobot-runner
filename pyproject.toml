@@ -1,6 +1,6 @@
 [project]
 name = "lerobot-inference"
-version = "1.0.5"
+version = "1.0.8"
 description = "Standalone inference and policy_train conversion for lerobot_trainer artifacts"
 readme = "README.md"
 license = "Apache-2.0"
@@ -11,7 +11,7 @@ dependencies = [
     "torch",
     "torchvision",
 
-    "lerobot[pi,smolvla,vla-jepa]==0.6.1",
+    "lerobot[fastwam,pi,smolvla,vla-jepa,lingbot_va]==0.6.1",
     "transformers>=5.4.0,<5.6.0",
 
     "numpy==2.2.6",
@@ -35,12 +35,35 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
 ]
+robotwin = [
+    "h5py>=3.8",
+    "websockets>=14.0",
+    "msgpack>=1.0.8",
+    "msgpack-numpy>=0.4.8",
+    "pydantic>=2.5",
+]
 build = [
     "pyinstaller>=6.0.0",
 ]
+libero-eval = [
+    # Keep the simulator stack isolated from normal Dora/infer installations.
+    "bddl==1.0.1",
+    "easydict>=1.9",
+    # bddl 1.0.1 still imports the compatibility helpers from PyPI's future.
+    "future>=0.18.2",
+    "gym==0.25.2",
+    "imageio[ffmpeg]>=2.30.0,<3.0.0",
+    "matplotlib>=3.5.3",
+    # FastWAM's released LIBERO data/evaluation uses MuJoCo 3.3.2.
+    "mujoco==3.3.2",
+    # robosuite depends on the GUI build; keep its cv2 ABI aligned with the
+    # project's already-pinned headless build instead of resolving OpenCV 5.
+    "opencv-python==4.13.0.92",
+    "robosuite==1.4.0",
+]
 
 [project.scripts]
-# 统一入口：lerobot <convert|infer|infer-once> ...
+# 统一入口：lerobot <convert|infer|infer-once|eval-libero> ...
 lerobot = "lerobot_inference.cli:main"
 # 兼容旧命令名（自动注入对应子命令）
 lerobot-infer-once = "lerobot_inference.cli:main_infer_once"

@@ -48,6 +48,7 @@ class LeRobotSessionPolicyRunner:
         auto_start: bool = False,
         emit_command_status: bool = True,
         call_lifecycle_hooks: bool = True,
+        require_fresh_observation: bool = False,
         endpoint_instance_id: str | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -60,13 +61,16 @@ class LeRobotSessionPolicyRunner:
         self.camera_aliases = alias_for_cameras or list(image_input_id_to_alias.values())
         self.emit_command_status = emit_command_status
         self.call_lifecycle_hooks = call_lifecycle_hooks
+        self.require_fresh_observation = require_fresh_observation
+        self._fresh_inputs: set[str] = set()
+        self._observation_inputs = {"proprio_state", *image_input_id_to_alias}
         self.endpoint_instance_id = endpoint_instance_id or str(uuid.uuid4())
         self.clock = clock
         self._async = asyncio.Runner()
         self.handler = ToolEndpointHandler(
             DESCRIPTOR,
             endpoint_instance_id=self.endpoint_instance_id,
-            operations={OPERATION: endpoint},
+            operations={OPERATION: endpoint, "describe": endpoint},
         )
         self.binding = DoraToolEndpointBinding(self.handler, event_sink=self._send_batch)
         self.lease = EndpointLease(DESCRIPTOR, self.endpoint_instance_id)
@@ -76,7 +80,18 @@ class LeRobotSessionPolicyRunner:
         )
         self.cached_proprio: Any | None = None
         self.cached_images: dict[str, Any] = {}
+        self.actions_emitted = 0
+        self.last_error: str | None = None
         endpoint.bind_stop_hook(self._stop_session)
+        endpoint.bind_runtime_status(self._describe_runtime)
+
+    def _describe_runtime(self) -> dict[str, Any]:
+        return {
+            "enabled": self.state.is_running,
+            "phase": self.state.phase,
+            "actions_emitted": self.actions_emitted,
+            "last_error": self.last_error,
+        }
 
     async def _send_batch(self, batch: pa.RecordBatch) -> None:
         self.node.send_output("tool_out", batch)
@@ -111,6 +126,7 @@ class LeRobotSessionPolicyRunner:
         self.state.phase = "idle"
         self.cached_proprio = None
         self.cached_images.clear()
+        self._fresh_inputs.clear()
         stop = getattr(self.policy, "stop", None)
         if callable(stop):
             stop()
@@ -161,16 +177,24 @@ class LeRobotSessionPolicyRunner:
                 if result.reset_observation_cache:
                     self.cached_proprio = None
                     self.cached_images.clear()
+                    self._fresh_inputs.clear()
                 if self.emit_command_status:
                     self._send_command_status(result)
                 return None
             if input_id == "proprio_state" and value is not None:
                 self.cached_proprio = value
+                self._fresh_inputs.add(input_id)
                 return None
             if input_id in self.image_input_id_to_alias and value is not None:
                 self.cached_images[input_id] = value
+                self._fresh_inputs.add(input_id)
                 return None
             if input_id != "tick" or not self.state.is_running:
+                return None
+            # Simulation publishes a complete observation after each applied action.
+            # Gate queued actions too: otherwise timer ticks can consume a chunk ahead
+            # of the simulator, or reuse a stale frame for the next prediction.
+            if self.require_fresh_observation and not self._observation_inputs <= self._fresh_inputs:
                 return None
 
             if self.policy.is_observation_needed():
@@ -187,9 +211,14 @@ class LeRobotSessionPolicyRunner:
             action_payload = self.policy.generate_action(observation, self.camera_aliases)
             if action_payload is not None:
                 self.node.send_output("action", self.build_action(action_payload).to_arrow())
+                self.actions_emitted += 1
+                self._fresh_inputs.clear()
+                self.last_error = None
         except (KeyError, TypeError, ValueError) as exc:
+            self.last_error = str(exc)
             logger.warning("ignored invalid policy input: %s", exc)
-        except Exception:
+        except Exception as exc:
+            self.last_error = str(exc)
             logger.exception("policy tick failed")
         return None
 

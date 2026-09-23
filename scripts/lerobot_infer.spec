@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec：lerobot_infer onedir，启用 torch.compile（对齐 act-local-trainer）。"""
+"""PyInstaller spec：lerobot_infer onefile，启用 torch.compile（对齐 act-local-trainer）。"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import sys
 import sysconfig
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_submodules, copy_metadata
 
 _spec_dir = Path(os.path.dirname(os.path.abspath(SPEC)))
 _root_dir = _spec_dir.parent
@@ -17,11 +17,19 @@ datas: list = []
 binaries: list = []
 hiddenimports: list = []
 
+# Preserve distribution metadata used by runtime dependency checks.
+for dist in (
+    "lerobot-inference", "lerobot", "diffusers", "transformers",
+    "requests", "filelock", "numpy",
+):
+    datas += copy_metadata(dist, recursive=True)
+
 for pkg in (
     "torch",
     "torchvision",
     "triton",
     "transformers",
+    "diffusers",
     "lerobot",
     "safetensors",
     "einops",
@@ -36,8 +44,8 @@ for pkg in (
         datas += tmp[0]
         binaries += tmp[1]
         hiddenimports += tmp[2]
-    except Exception:
-        pass
+    except Exception as exc:
+        raise RuntimeError(f"Failed to collect required package: {pkg}") from exc
 
 hiddenimports += collect_submodules("lerobot_inference")
 hiddenimports += collect_submodules("forge_msgs")
@@ -53,6 +61,8 @@ hiddenimports += [
     "lerobot_inference.inference.policies.act",
     "lerobot_inference.inference.policies.pi05",
     "lerobot_inference.inference.policies.registry",
+    "lerobot_inference.inference.policies.lingbot_va",
+    "lerobot.policies.lingbot_va.modeling_lingbot_va",
     "torch._dynamo",
     "torch._dynamo.backends.inductor",
     "torch._functorch",
@@ -116,11 +126,7 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
+_EXE_ARGS = dict(
     name="lerobot_infer",
     debug=False,
     bootloader_ignore_signals=False,
@@ -133,12 +139,19 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name="lerobot_infer",
-)
+
+# LEROBOT_PYI_MODE=onedir 时产出目录形态（对应 PAOS 的 directory_tar_gz）。
+# onefile 的 CArchive 用 32 位偏移记录 TOC，内容超过 4 GiB 会直接构建失败；
+# onedir 不生成 CArchive，没有这个上限。
+if os.environ.get("LEROBOT_PYI_MODE") == "onedir":
+    exe = EXE(pyz, a.scripts, [], exclude_binaries=True, **_EXE_ARGS)
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=False,
+        name="lerobot_infer",
+    )
+else:
+    exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], **_EXE_ARGS)

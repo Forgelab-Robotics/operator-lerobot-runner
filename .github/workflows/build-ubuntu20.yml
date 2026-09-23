@@ -7,11 +7,11 @@ on:
       ref:
         description: Git ref to build
         required: true
-        default: v1.0.5
+        default: master
       version:
         description: Release version without the v prefix
         required: true
-        default: 1.0.5
+        default: 1.0.8
       build_node:
         description: Also build the onefile Forge node archive
         type: boolean
@@ -55,7 +55,7 @@ jobs:
       - name: Build with PyInstaller
         run: |
           bash scripts/setup.sh --frozen
-          bash scripts/build.sh
+          bash scripts/build.sh --onedir
 
       - name: Verify and package binary
         run: |
@@ -64,9 +64,9 @@ jobs:
           case "${{ inputs.ref }}" in
             v*) test "${{ inputs.ref }}" = "v${RELEASE_VERSION}" ;;
           esac
-          test "$(./dist/lerobot_infer/lerobot_infer --version)" = "lerobot ${RELEASE_VERSION}"
-          ./dist/lerobot_infer/lerobot_infer --help >/dev/null
-          file ./dist/lerobot_infer/lerobot_infer
+          test "$(./dist/onedir/lerobot_infer/lerobot_infer --version)" = "lerobot ${RELEASE_VERSION}"
+          ./dist/onedir/lerobot_infer/lerobot_infer --help >/dev/null
+          file ./dist/onedir/lerobot_infer/lerobot_infer
           ldd --version | sed -n '1p'
           archive="forge-lerobot-inference-v${RELEASE_VERSION}-ubuntu20.04-x86_64.tar.gz"
           tar \
@@ -75,7 +75,7 @@ jobs:
             --owner=0 \
             --group=0 \
             --numeric-owner \
-            -C dist \
+            -C dist/onedir \
             -czf "${archive}" \
             lerobot_infer
           sha256sum "${archive}" > "${archive}.sha256"
@@ -86,16 +86,16 @@ jobs:
           # same-named executable plus its runtime tree. All symbolic links
           # must stay relative and resolve inside the tree.
           test "$(tar -tzf "${archive}" | awk -F/ '{print $1}' | sort -u)" = "lerobot_infer"
-          bad_links="$(find dist/lerobot_infer -type l \
+          bad_links="$(find dist/onedir/lerobot_infer -type l \
             \( -lname '/*' -o -lname '*..*' \) -print -quit)"
           test -z "${bad_links}" || { echo "unsafe symlink: ${bad_links}" >&2; exit 1; }
-          dangling="$(find dist/lerobot_infer -xtype l -print -quit)"
+          dangling="$(find dist/onedir/lerobot_infer -xtype l -print -quit)"
           test -z "${dangling}" || { echo "dangling symlink: ${dangling}" >&2; exit 1; }
-          test "$(find dist/lerobot_infer -type f -links +1 | wc -l)" = "0"
+          test "$(find dist/onedir/lerobot_infer -type f -links +1 | wc -l)" = "0"
 
       - name: Build onefile Forge node (optional)
         if: ${{ inputs.build_node }}
-        run: bash scripts/build_node_onefile.sh
+        run: bash scripts/build.sh
 
       - name: Verify and package node archive (optional)
         if: ${{ inputs.build_node }}

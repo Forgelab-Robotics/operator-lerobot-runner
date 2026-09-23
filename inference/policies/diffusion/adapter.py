@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from contextlib import nullcontext
 from typing import Any
 
@@ -36,11 +37,21 @@ class DiffusionPolicyAdapter(LerobotPolicyAdapter):
         postprocessor: PolicyProcessorPipeline,
         *,
         expected_image_keys: set[str],
+        expected_image_shapes: Mapping[str, tuple[int, ...]] | None = None,
+        instruction: str = "",
+        instruction_conditioning: str = "none",
     ) -> None:
+        if instruction_conditioning != "none":
+            raise ValueError(
+                "LeRobot DiffusionPolicy supports "
+                "instruction_conditioning='none' only"
+            )
         self._policy = policy
         self._preprocessor = preprocessor
         self._postprocessor = postprocessor
         self._expected_image_keys = expected_image_keys
+        self._expected_image_shapes = dict(expected_image_shapes or {})
+        self._instruction = str(instruction)
         # Pure-visual diffusion configs exist; the state feature is optional.
         self._has_state = "observation.state" in policy.config.input_features
         try:
@@ -57,6 +68,9 @@ class DiffusionPolicyAdapter(LerobotPolicyAdapter):
         expected_image_keys: set[str] | None = None,
         torch_compile: bool = False,
         policy_config_overrides: dict[str, Any] | None = None,
+        instruction: str = "",
+        instruction_conditioning: str = "none",
+        expected_checkpoint_contract: Mapping[str, int] | None = None,
     ) -> DiffusionPolicyAdapter:
         policy, preprocessor, postprocessor, config = load_policy_bundle(
             pretrained_path,
@@ -67,6 +81,15 @@ class DiffusionPolicyAdapter(LerobotPolicyAdapter):
             raise ValueError(f"DiffusionPolicyAdapter expects type diffusion, got {config.type!r}")
         policy = maybe_compile_policy(policy, enabled=torch_compile)
         model_image_keys = set(config.image_features)
+        model_image_shapes: dict[str, tuple[int, ...]] = {}
+        for key in model_image_keys:
+            shape = tuple(int(dim) for dim in config.input_features[key].shape)
+            if len(shape) != 3 or shape[0] != 3 or any(dim < 1 for dim in shape):
+                raise ValueError(
+                    f"Diffusion checkpoint image feature {key} must be positive "
+                    f"CHW RGB, got shape={shape}"
+                )
+            model_image_shapes[key] = shape
         if expected_image_keys is not None and expected_image_keys != model_image_keys:
             missing = sorted(model_image_keys - expected_image_keys)
             unexpected = sorted(expected_image_keys - model_image_keys)
@@ -75,12 +98,70 @@ class DiffusionPolicyAdapter(LerobotPolicyAdapter):
                 f"missing={missing}, unexpected={unexpected}, "
                 f"checkpoint={sorted(model_image_keys)}"
             )
+        checkpoint_contract = cls._checkpoint_temporal_contract(config)
+        cls._validate_checkpoint_contract(
+            checkpoint_contract, expected_checkpoint_contract or {}
+        )
         return cls(
             policy,
             preprocessor,
             postprocessor,
             expected_image_keys=model_image_keys,
+            expected_image_shapes=model_image_shapes,
+            instruction=instruction,
+            instruction_conditioning=instruction_conditioning,
         )
+
+    @staticmethod
+    def _checkpoint_temporal_contract(config: Any) -> dict[str, int]:
+        contract: dict[str, int] = {}
+        for key in ("n_obs_steps", "horizon", "n_action_steps"):
+            raw = getattr(config, key, None)
+            if isinstance(raw, bool):
+                raise ValueError(
+                    f"Diffusion checkpoint has invalid {key}: {raw!r}"
+                )
+            try:
+                value = int(raw)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Diffusion checkpoint has invalid {key}: {raw!r}"
+                ) from exc
+            if value < 1 or (isinstance(raw, float) and not raw.is_integer()):
+                raise ValueError(
+                    f"Diffusion checkpoint has invalid {key}: {raw!r}"
+                )
+            contract[key] = value
+        return contract
+
+    @staticmethod
+    def _validate_checkpoint_contract(
+        checkpoint: Mapping[str, int], expected: Mapping[str, int]
+    ) -> None:
+        supported = {"n_obs_steps", "horizon", "n_action_steps"}
+        unknown = set(expected) - supported
+        if unknown:
+            raise ValueError(
+                f"Unknown Diffusion checkpoint contract keys: {sorted(unknown)}"
+            )
+        mismatches = [
+            f"{key}: expected={value}, checkpoint={checkpoint[key]}"
+            for key, value in expected.items()
+            if checkpoint[key] != value
+        ]
+        if mismatches:
+            raise ValueError(
+                "Diffusion checkpoint contract mismatch: " + "; ".join(mismatches)
+            )
+
+    @property
+    def instruction(self) -> str:
+        """Current task text; standard LeRobot Diffusion does not consume it."""
+        return self._instruction
+
+    @instruction.setter
+    def instruction(self, value: str) -> None:
+        self._instruction = str(value)
 
     def validate_io_dimensions(self, state_dim: int, action_dim: int) -> None:
         """Validate observation and command dimensions independently."""
@@ -152,6 +233,19 @@ class DiffusionPolicyAdapter(LerobotPolicyAdapter):
                 raise ValueError(
                     f"Expected HWC RGB image for {image_key}, got shape={image.shape}"
                 )
+            checkpoint_shape = self._expected_image_shapes.get(image_key)
+            if checkpoint_shape is not None:
+                expected_hwc = (
+                    checkpoint_shape[1],
+                    checkpoint_shape[2],
+                    checkpoint_shape[0],
+                )
+                if tuple(image.shape) != expected_hwc:
+                    raise ValueError(
+                        f"Image shape for {image_key} does not match checkpoint: "
+                        f"runtime={tuple(image.shape)}, "
+                        f"checkpoint_hwc={expected_hwc}"
+                    )
             if image.dtype == np.uint8:
                 pass
             elif np.issubdtype(image.dtype, np.floating):

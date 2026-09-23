@@ -44,6 +44,7 @@ DESCRIPTOR = ToolEndpointDescriptor(
             status_supported=True,
             max_concurrency=1,
         ),
+        ToolOperationDescriptor(name="describe", semantics="query", max_concurrency=1),
     ),
 )
 
@@ -72,6 +73,37 @@ class LeRobotServeSessionEndpoint:
         self._active: ToolExecutionKey | None = None
         self._accepting = True
         self._stop_hook: Callable[[], None] | None = None
+        self._runtime_status: Callable[[], dict[str, Any]] = lambda: {
+            "enabled": False, "phase": "idle", "actions_emitted": 0,
+        }
+
+    def bind_runtime_status(self, provider: Callable[[], dict[str, Any]]) -> None:
+        self._runtime_status = provider
+
+    async def query(self, request: ToolRequest, context: ToolContext) -> ToolResult:
+        if context.operation != "describe":
+            raise _endpoint_error("FORGE_PROTOCOL_UNKNOWN_OPERATION", "expected describe")
+        if request.arguments:
+            raise _endpoint_error("POLICY_RUNNER_INVALID_ARGUMENTS", "describe accepts no arguments")
+        active = self._executions.get(self._active) if self._active is not None else None
+        transport = dict(self._runtime_status())
+        ready = self._accepting and active is not None and active.phase == "running"
+        return ToolResult(status="succeeded", outputs={
+            "node": {"endpoint_id": ENDPOINT_ID, "policy_id": self.policy_id},
+            "policy": {
+                "phase": active.phase if active else ("idle" if self._accepting else "stopped"),
+                "ready": ready,
+                "loaded": True,
+                "resident": True,
+                "readiness_basis": "model_loaded_and_session_active",
+            },
+            "health": {
+                "model_loaded": True,
+                "forward_verified": transport.get("actions_emitted", 0) > 0,
+                "last_error": transport.get("last_error"),
+            },
+            "transport": transport,
+        })
 
     def bind_stop_hook(self, hook: Callable[[], None]) -> None:
         self._stop_hook = hook
