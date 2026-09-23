@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,6 +11,9 @@ from typing import Any
 
 import yaml
 from lerobot_inference.common.paths import resolve_user_path
+
+
+_UNEXPANDED_ENV = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\})")
 
 
 @dataclass(frozen=True)
@@ -30,6 +34,7 @@ class PolicyNodeConfig:
     image_input_id_to_alias: dict[str, str] = field(default_factory=dict)
     state_joints: list[str] = field(default_factory=list)
     mode: str = "dora_plain"
+    require_fresh_observation: bool = False
 
     @property
     def joint_order(self) -> list[str]:
@@ -140,6 +145,7 @@ class PolicyNodeConfig:
             auto_start=_as_bool(policy.get("auto_start", data.get("auto_start", False))),
             image_input_id_to_alias=image_input_id_to_alias,
             mode=mode,
+            require_fresh_observation=_as_bool(data.get("require_fresh_observation", False)),
         )
 
     @classmethod
@@ -154,11 +160,36 @@ class PolicyNodeConfig:
         base = p.parent
         policy = data.get("policy")
         if isinstance(policy, dict):
-            for key in ("run_dir", "pretrained_path", "tokenizer_path", "ckpt_path", "wan_pretrained_path"):
+            policy_type = str(policy.get("type", "")).strip().lower()
+            # These accept either a Hub id or a local model directory. Expand
+            # deployment variables without turning Hub ids into local paths.
+            for key in ("qwen_model_name", "jepa_encoder_name"):
+                if policy.get(key):
+                    value = os.path.expanduser(os.path.expandvars(str(policy[key])))
+                    if _UNEXPANDED_ENV.findall(value):
+                        raise ValueError(f"policy.{key} references unset environment variables")
+                    policy[key] = value
+            for key in (
+                "run_dir",
+                "pretrained_path",
+                "tokenizer_path",
+                "wan_diffusers_path",
+                "ckpt_path",
+                "wan_pretrained_path",
+            ):
                 value = policy.get(key)
                 if not value:
                     continue
                 path_value = Path(os.path.expandvars(str(value))).expanduser()
+                # 部署环境变量拼错的路径会静默退化成相对路径，这里只对
+                # Diffusion checkpoint 报错，保持其它策略的历史行为不变。
+                if policy_type == "diffusion" and key == "pretrained_path":
+                    unresolved = _UNEXPANDED_ENV.findall(str(path_value))
+                    if unresolved:
+                        raise ValueError(
+                            "policy.pretrained_path references unset environment variables: "
+                            + ", ".join(unresolved)
+                        )
                 if not path_value.is_absolute():
                     policy[key] = str((base / path_value).resolve())
                 else:

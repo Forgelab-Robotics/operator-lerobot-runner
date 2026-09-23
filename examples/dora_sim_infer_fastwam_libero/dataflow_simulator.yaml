@@ -1,0 +1,20 @@
+# Stage 1/3: Forge message simulator and observation routing probe only.
+nodes:
+  - id: simulator
+    path: ../fastwam_dora_support/project_python.sh
+    args: ../fastwam_dora_support/protocol_node.py simulator --config ./simulator.yaml
+    inputs:
+      tick: dora/timer/millis/20
+    outputs:
+      - proprio_state
+      - image/camera_0
+      - image/camera_1
+      - policy_command
+
+  - id: observation_probe
+    path: ../fastwam_dora_support/project_python.sh
+    args: ../fastwam_dora_support/protocol_node.py probe --config ./simulator.yaml
+    inputs:
+      proprio_state: simulator/proprio_state
+      image/camera_0: simulator/image/camera_0
+      image/camera_1: simulator/image/camera_1

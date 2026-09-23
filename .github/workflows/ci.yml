@@ -25,7 +25,7 @@ jobs:
       - name: Verify CLI
         run: |
           uv run lerobot --help
-          test "$(uv run lerobot --version)" = "lerobot 1.0.5"
+          test "$(uv run lerobot --version)" = "lerobot 1.0.8"
       - name: Import Forge packages
         run: uv run python -c "import forge_common, forge_msgs, forge_policy, forge_tool"
       - name: License and public-tree checks

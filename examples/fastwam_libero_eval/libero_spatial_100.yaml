@@ -1,0 +1,19 @@
+# LeRobot LIBERO 推荐协议的 Spatial 子集：10 tasks × 10 episodes/task。
+policy_config: policy_fastwam.yaml
+libero_root: ../../../LIBERO
+output_dir: out
+
+suite: libero_spatial
+task_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+episodes_per_task: 10
+init_state_id: 0
+seed: 0
+
+# LeRobot 0.6.1 对 libero_spatial 的默认 horizon。
+episode_length: 280
+num_steps_wait: 10
+control_freq: 20
+observation_size: 256
+
+# 任一 task 出现技术错误即停止，避免在模型/环境异常时继续浪费 GPU 时间。
+continue_on_error: false

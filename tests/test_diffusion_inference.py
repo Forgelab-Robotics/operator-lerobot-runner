@@ -8,6 +8,8 @@ import torch
 from lerobot_inference.inference.policies.diffusion import DiffusionPolicyAdapter
 from lerobot_inference.inference.policies.registry import (
     _create_diffusion,
+    _diffusion_checkpoint_contract,
+    _diffusion_instruction_conditioning,
     _diffusion_policy_config_overrides,
 )
 
@@ -45,6 +47,9 @@ class FakeDiffusionPolicy:
             use_amp=False,
             input_features=input_features,
             output_features={"action": SimpleNamespace(shape=(7,))},
+            n_obs_steps=2,
+            horizon=16,
+            n_action_steps=8,
         )
         self.reset_count = 0
         self.select_batches: list[dict] = []
@@ -114,6 +119,21 @@ def test_diffusion_generate_action_pipeline_order() -> None:
     assert batch["observation.images.top"].shape == (1, 3, 224, 224)
 
 
+def test_diffusion_validates_checkpoint_image_shape() -> None:
+    adapter = DiffusionPolicyAdapter(
+        FakeDiffusionPolicy(),
+        FakeProcessor(),
+        FakeProcessor(),
+        expected_image_keys={"observation.images.top"},
+        expected_image_shapes={"observation.images.top": (3, 224, 224)},
+    )
+    observation = make_observation()
+    observation["observation.images.top"] = np.zeros((256, 256, 3), dtype=np.uint8)
+
+    with pytest.raises(ValueError, match="does not match checkpoint"):
+        adapter.generate_action(observation)
+
+
 def test_diffusion_validates_observation_keys() -> None:
     adapter = make_adapter()
 
@@ -159,6 +179,29 @@ def test_diffusion_reset_resets_policy_and_processors() -> None:
     assert postprocessor.reset_count == 1
 
 
+def test_diffusion_instruction_is_explicitly_language_free() -> None:
+    adapter = make_adapter()
+    adapter.instruction = "put the bowl on the plate"
+
+    assert adapter.instruction == "put the bowl on the plate"
+    assert _diffusion_instruction_conditioning({}) == "none"
+    assert _diffusion_instruction_conditioning(
+        {"instruction_conditioning": "NONE"}
+    ) == "none"
+    with pytest.raises(ValueError, match="must be 'none'"):
+        _diffusion_instruction_conditioning(
+            {"instruction_conditioning": "distilbert"}
+        )
+    with pytest.raises(ValueError, match="instruction_conditioning='none'"):
+        DiffusionPolicyAdapter(
+            FakeDiffusionPolicy(),
+            FakeProcessor(),
+            FakeProcessor(),
+            expected_image_keys={"observation.images.top"},
+            instruction_conditioning="distilbert",
+        )
+
+
 def test_diffusion_pause_and_stop_reset() -> None:
     policy = FakeDiffusionPolicy()
     adapter = make_adapter(policy=policy)
@@ -196,6 +239,19 @@ def test_diffusion_policy_config_overrides_passthrough() -> None:
     assert _diffusion_policy_config_overrides({"compile_mode": "max-autotune"}) == {
         "compile_mode": "max-autotune"
     }
+
+
+def test_diffusion_checkpoint_contract_from_runtime_config() -> None:
+    assert _diffusion_checkpoint_contract(
+        {
+            "expected_n_obs_steps": 2,
+            "expected_horizon": "16",
+            "expected_n_action_steps": 8,
+        }
+    ) == {"n_obs_steps": 2, "horizon": 16, "n_action_steps": 8}
+    for invalid in (True, 0, 1.5, "not-an-int"):
+        with pytest.raises(ValueError, match="positive integer"):
+            _diffusion_checkpoint_contract({"expected_horizon": invalid})
 
 
 def test_diffusion_factory_validates_runtime_dimensions(monkeypatch) -> None:
@@ -298,3 +354,39 @@ def test_diffusion_from_pretrained_ok(monkeypatch) -> None:
     )
     assert adapter._policy is policy
     assert adapter._expected_image_keys == {"observation.images.top"}
+    assert adapter._expected_image_shapes == {"observation.images.top": (3, 224, 224)}
+
+
+def test_diffusion_from_pretrained_uses_checkpoint_temporal_contract(monkeypatch) -> None:
+    policy = _monkeypatched_bundle(monkeypatch)
+    policy.config.n_obs_steps = 3
+    policy.config.horizon = 20
+    policy.config.n_action_steps = 6
+
+    DiffusionPolicyAdapter.from_pretrained(
+        "/unused",
+        expected_checkpoint_contract={
+            "n_obs_steps": 3,
+            "horizon": 20,
+            "n_action_steps": 6,
+        },
+    )
+
+
+def test_diffusion_from_pretrained_rejects_temporal_mismatch(monkeypatch) -> None:
+    _monkeypatched_bundle(monkeypatch)
+    with pytest.raises(
+        ValueError, match="n_action_steps: expected=4, checkpoint=8"
+    ):
+        DiffusionPolicyAdapter.from_pretrained(
+            "/unused",
+            expected_checkpoint_contract={"n_obs_steps": 2, "n_action_steps": 4},
+        )
+
+
+def test_diffusion_from_pretrained_rejects_invalid_checkpoint_contract(monkeypatch) -> None:
+    policy = _monkeypatched_bundle(monkeypatch)
+    policy.config.horizon = 0
+
+    with pytest.raises(ValueError, match="checkpoint has invalid horizon"):
+        DiffusionPolicyAdapter.from_pretrained("/unused")

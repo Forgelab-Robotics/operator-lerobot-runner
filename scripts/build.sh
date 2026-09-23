@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build unified lerobot CLI (convert / infer / infer-once) into a PyInstaller onedir binary.
+# Build unified lerobot CLI (convert / infer / infer-once) into a PyInstaller onefile binary.
 # 对齐 act-local-trainer/scripts/build_pyinstaller.sh。
 #
 # Usage:
@@ -11,7 +11,7 @@
 #   EXTRA_PYINSTALLER_ARGS='--log-level DEBUG' bash scripts/build.sh
 #
 # 产物：
-#   dist/lerobot_infer/lerobot_infer
+#   dist/onefile/lerobot_infer
 #   bin/lerobot_infer/                 # 拷贝，供 dataflow path 引用
 # 用法示例：
 #   bin/lerobot_infer/lerobot_infer --help
@@ -25,9 +25,11 @@ ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${ROOT}"
 
 CLEAN=0
+MODE=onefile
 for arg in "$@"; do
   case "${arg}" in
     --clean) CLEAN=1 ;;
+    --onedir) MODE=onedir ;;
     -h|--help)
       sed -n '2,18p' "$0"
       exit 0
@@ -100,16 +102,20 @@ fi
 
 if [[ "${CLEAN}" -eq 1 ]]; then
   echo "==> Cleaning previous build artifacts"
-  rm -rf "${ROOT}/dist/lerobot_infer" "${ROOT}/build/pyinstaller/lerobot_infer"
+  rm -rf "${ROOT}/dist/${MODE}" "${ROOT}/build/pyinstaller/lerobot_infer_${MODE}"
 fi
 
-mkdir -p "${ROOT}/dist" "${ROOT}/build/pyinstaller/lerobot_infer" "${ROOT}/bin"
+mkdir -p "${ROOT}/dist" "${ROOT}/build/pyinstaller/lerobot_infer_${MODE}" "${ROOT}/bin"
+
+# onedir 产出目录形态，对应 PAOS 的 directory_tar_gz；
+# onefile 的 CArchive 用 32 位 TOC 偏移，内容 >4 GiB 会构建失败。
+export LEROBOT_PYI_MODE="${MODE}"
 
 PYINSTALLER_ARGS=(
   --noconfirm
   --clean
-  --distpath "${ROOT}/dist"
-  --workpath "${ROOT}/build/pyinstaller/lerobot_infer"
+  --distpath "${ROOT}/dist/${MODE}"
+  --workpath "${ROOT}/build/pyinstaller/lerobot_infer_${MODE}"
 )
 
 # Force known conflict-prone shared libraries from the active venv into bundle root.
@@ -135,8 +141,12 @@ fi
 echo "==> Building lerobot_infer ..."
 "${PYTHON}" -m PyInstaller "${PYINSTALLER_ARGS[@]}" "${SPEC}"
 
-DIST_DIR="${ROOT}/dist/lerobot_infer"
-DIST_BIN="${DIST_DIR}/lerobot_infer"
+DIST_DIR="${ROOT}/dist/${MODE}"
+if [[ "${MODE}" == "onedir" ]]; then
+  DIST_BIN="${DIST_DIR}/lerobot_infer/lerobot_infer"
+else
+  DIST_BIN="${DIST_DIR}/lerobot_infer"
+fi
 
 if [[ ! -x "${DIST_BIN}" ]]; then
   echo "ERROR: 构建失败，未找到 ${DIST_BIN}" >&2
@@ -145,8 +155,15 @@ fi
 
 BIN_DIR="${ROOT}/bin/lerobot_infer"
 rm -rf "${BIN_DIR}"
-cp -a "${DIST_DIR}" "${BIN_DIR}"
-BIN_BIN="${BIN_DIR}/lerobot_infer"
+mkdir -p "${BIN_DIR}"
+if [[ "${MODE}" == "onedir" ]]; then
+  # onedir 的可执行文件依赖同目录的 _internal/，必须整目录复制。
+  cp -a "${DIST_DIR}/lerobot_infer/." "${BIN_DIR}/"
+  BIN_BIN="${BIN_DIR}/lerobot_infer"
+else
+  cp -a "${DIST_BIN}" "${BIN_DIR}/lerobot_infer"
+  BIN_BIN="${BIN_DIR}/lerobot_infer"
+fi
 if [[ ! -x "${BIN_BIN}" ]]; then
   echo "ERROR: 复制失败，未找到 ${BIN_BIN}" >&2
   exit 1

@@ -1,0 +1,42 @@
+joints:
+  - { name: action_0, mode: position, unit: normalized }
+  - { name: action_1, mode: position, unit: normalized }
+  - { name: action_2, mode: position, unit: normalized }
+  - { name: action_3, mode: position, unit: normalized }
+  - { name: action_4, mode: position, unit: normalized }
+  - { name: action_5, mode: position, unit: normalized }
+  - { name: action_6, mode: position, unit: normalized }
+  - { name: action_7, mode: position, unit: normalized }
+  - { name: action_8, mode: position, unit: normalized }
+  - { name: action_9, mode: position, unit: normalized }
+  - { name: action_10, mode: position, unit: normalized }
+  - { name: action_11, mode: position, unit: normalized }
+  - { name: action_12, mode: position, unit: normalized }
+  - { name: action_13, mode: position, unit: normalized }
+
+state_joints:
+  [state_0, state_1, state_2, state_3, state_4, state_5, state_6,
+   state_7, state_8, state_9, state_10, state_11, state_12, state_13]
+
+policy:
+  type: fastwam
+  policy_id: fastwam_robotwin_dora
+  auto_start: false
+  pretrained_path: ./model
+  wan_diffusers_path: ./wan
+  tokenizer_path: ./tokenizer
+  instruction: complete the manipulation task
+  device: cuda:0
+  torch_dtype: bfloat16
+  use_amp: false
+  n_action_steps: 10
+  num_inference_steps: 10
+  inference_seed: 42
+  rand_device: cpu
+  text_cfg_scale: 1.0
+  negative_prompt: ""
+  sigma_shift: null
+  tiled: false
+
+image_inputs:
+  image/combined: image

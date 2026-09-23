@@ -76,6 +76,18 @@ def test_config_rejects_unknown_mode() -> None:
         )
 
 
+def test_vlajepa_model_sources_expand_paths_and_preserve_hub_ids(monkeypatch, tmp_path):
+    monkeypatch.setenv("QWEN_LOCAL", str(tmp_path / "qwen"))
+    path = tmp_path / "policy.yaml"
+    path.write_text("joints: [arm]\nimage_inputs: {image/main: image}\npolicy:\n  type: vla_jepa\n  qwen_model_name: ${QWEN_LOCAL}\n  jepa_encoder_name: facebook/vjepa2-vitl-fpc64-256\n")
+    config = PolicyNodeConfig.from_yaml_path(path)
+    assert config.policy["qwen_model_name"] == str(tmp_path / "qwen")
+    assert config.policy["jepa_encoder_name"] == "facebook/vjepa2-vitl-fpc64-256"
+    monkeypatch.delenv("QWEN_LOCAL")
+    with pytest.raises(ValueError, match="unset environment"):
+        PolicyNodeConfig.from_yaml_path(path)
+
+
 def test_session_lifecycle_and_stop_hook() -> None:
     endpoint = LeRobotServeSessionEndpoint(policy_id="lingbot_va_libero")
     stopped = []
@@ -113,3 +125,26 @@ def test_duplicate_is_idempotent_and_other_session_is_busy() -> None:
             endpoint.start(ToolRequest(arguments={}), _context("session-2"), _Emitter())
         )
     assert "FORGE_ENDPOINT_BUSY" in str(caught.value)
+
+
+def test_describe_tracks_session_without_claiming_forward() -> None:
+    from dataclasses import replace
+
+    endpoint = LeRobotServeSessionEndpoint(policy_id="dp_libero")
+    context = replace(_context("query-1"), operation="describe")
+    query = lambda: asyncio.run(endpoint.query(ToolRequest(arguments={}), context)).outputs
+    assert any(op.name == "describe" and op.semantics == "query" for op in DESCRIPTOR.operations)
+    assert query()["policy"]["ready"] is False
+    session = _context("session-1")
+    asyncio.run(endpoint.start(ToolRequest(arguments={}), session, _Emitter()))
+    assert query()["policy"]["ready"] is True
+    assert query()["health"]["forward_verified"] is False
+    endpoint.bind_runtime_status(lambda: {"enabled": True, "phase": "running", "actions_emitted": 2})
+    assert query()["health"]["forward_verified"] is True
+    assert query()["transport"]["enabled"] is True
+    asyncio.run(endpoint.stop(session.execution_key))
+    assert query()["policy"]["ready"] is False
+    with pytest.raises(Exception, match="accepts no arguments"):
+        asyncio.run(endpoint.query(ToolRequest(arguments={"unknown": 1}), context))
+    asyncio.run(endpoint.shutdown())
+    assert query()["policy"]["phase"] == "stopped"

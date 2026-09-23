@@ -178,42 +178,23 @@ revision，`huggingface-cli download <repo> --revision <hash>` 可确定具体�
 
 ## 打包
 
+默认构建单文件 Node；CI 的目录制品使用 `--onedir`：
+
 ```bash
-bash scripts/build.sh
+bash scripts/build.sh                 # dist/onefile/lerobot_infer
+python3 scripts/package_release.py   # dist/release/lerobot_infer-1.0.8-linux-x86_64.tar.gz
+bash scripts/build.sh --onedir        # dist/onedir/lerobot_infer/
 ```
 
-PyInstaller 产物位于 `dist/lerobot_infer/lerobot_infer`：
+单文件产物可直接运行：
 
 ```bash
-dist/lerobot_infer/lerobot_infer infer --config /path/to/policy_act.yaml
+dist/onefile/lerobot_infer infer --config /path/to/policy_act.yaml
 ```
 
 构建缓存和产物均被 Git 忽略；需要重新打包时可执行 `bash scripts/build.sh --clean`。
-
-### 单文件节点构建（可选）
-
-以 Forge/PAOS `executable_tar_gz` 契约安装节点时，归档根目录必须只包含一个可执行文件，
-且文件名与节点锁的 `entrypoint` 一致（`lerobot_infer`）。默认 onedir 产物是目录，不满足该契约；
-需要按节点方式发布时使用独立脚本构建单文件变体，onedir 流程保持不变：
-
-```bash
-bash scripts/setup.sh                 # 首次准备 uv 环境
-bash scripts/build_node_onefile.sh    # 产物：dist/onefile/lerobot_infer
-```
-
-打包为节点归档（`tar -tzf` 只应输出一行 `lerobot_infer`）：
-
-```bash
-tar -czf lerobot_infer-<version>-linux-x86_64.tar.gz -C dist/onefile lerobot_infer
-```
-
-说明：
-
-- 构建依赖与 onedir 相同：`uv sync --extra build`（或 `scripts/build.sh` 自动安装的 `pyinstaller>=6.0.0`）；
-- 构建解释器默认为仓库内 `.venv/bin/python`，可用 `PYTHON=/path/to/python` 覆盖，不自动回退到系统 Python；
-- onefile 变体使用 `dist/onefile/` 与 `build/pyinstaller/lerobot_infer_node/`，与 onedir 产物互不覆盖；
-- 单文件启动时需要解包，启动耗时和归档体积都高于 onedir，仅建议用于节点交付场景；
-- CI 默认仍只构建 onedir 资产，onefile 为可选构建方式。
+标准 Node 归档根目录只有一个 `lerobot_infer` 可执行文件；CI 默认构建 onedir，
+手动触发时可选择同时构建 onefile。
 
 ## License
 
